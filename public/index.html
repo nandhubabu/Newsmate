@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NewsMate - Global News Hub</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1 class="app-title">📰 NewsMate</h1>
+            <p class="app-subtitle">Your Global News Companion</p>
+            
+            <div class="controls">
+                <div class="control-group">
+                    <label for="country-select">Select Country:</label>
+                    <select id="country-select" class="country-select">
+                        <option value="us">🇺🇸 United States</option>
+                        <option value="in">🇮🇳 India</option>
+                        <option value="gb">🇬🇧 United Kingdom</option>
+                        <option value="ca">🇨🇦 Canada</option>
+                        <option value="au">🇦🇺 Australia</option>
+                        <option value="de">🇩🇪 Germany</option>
+                        <option value="fr">🇫🇷 France</option>
+                        <option value="jp">🇯🇵 Japan</option>
+                        <option value="cn">🇨🇳 China</option>
+                        <option value="br">🇧🇷 Brazil</option>
+                        <option value="ru">🇷🇺 Russia</option>
+                        <option value="za">🇿🇦 South Africa</option>
+                        <option value="mx">🇲🇽 Mexico</option>
+                        <option value="it">🇮🇹 Italy</option>
+                        <option value="es">🇪🇸 Spain</option>
+                        <option value="nl">🇳🇱 Netherlands</option>
+                        <option value="se">🇸🇪 Sweden</option>
+                    </select>
+                </div>
+            </div>
+        </header>
+
+        <main id="news-grid" class="news-grid">
+            <!-- News articles will be loaded here -->
+        </main>
+    </div>
+
+    <!-- Floating Chatbot Button (similar to the image) -->
+    <div class="floating-chat-btn" id="floating-chat-btn">
+        <div class="chat-avatar">
+            <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
+                <path d="M12 2C13.1 2 14 2.9 14 4C14 5.1 13.1 6 12 6C10.9 6 10 5.1 10 4C10 2.9 10.9 2 12 2ZM21 9V7L15 1L9 7V9C9 10 8 11 7 11V13C8 13 9 14 9 15V16L15 23L21 16V15C21 14 22 13 23 13V11C22 11 21 10 21 9Z"/>
+            </svg>
+        </div>
+        <div class="chat-pulse"></div>
+    </div>
+
+    <!-- Chatbot Modal (Enhanced) -->
+    <div id="chatbot-modal" class="chatbot-modal">
+        <div class="chatbot-container">
+            <div class="chatbot-header">
+                <div class="header-info">
+                    <div class="bot-avatar">
+                        <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+                            <path d="M12 2C13.1 2 14 2.9 14 4C14 5.1 13.1 6 12 6C10.9 6 10 5.1 10 4C10 2.9 10.9 2 12 2ZM21 9V7L15 1L9 7V9C9 10 8 11 7 11V13C8 13 9 14 9 15V16L15 23L21 16V15C21 14 22 13 23 13V11C22 11 21 10 21 9Z"/>
+                        </svg>
+                    </div>
+                    <div class="bot-info">
+                        <h3>NewsBot Assistant</h3>
+                        <span class="status-indicator">Online</span>
+                    </div>
+                </div>
+                <button id="close-chat" class="close-chat-btn">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                        <path d="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z"/>
+                    </svg>
+                </button>
+            </div>
+            
+            <div class="chatbot-messages" id="chat-messages">
+                <div class="bot-message">
+                    <div class="message-bubble">
+                        <div class="message-content">
+                            Hello! I'm your NewsMate assistant. I can help you with information about this app and answer news-related questions. How can I help you today?
+                        </div>
+                        <div class="message-time">Just now</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="chatbot-suggestions" id="chat-suggestions">
+                <!-- Suggestions will be loaded here -->
+            </div>
+            
+            <div class="chatbot-input">
+                <div class="input-container">
+                    <input type="text" id="chat-input" placeholder="Type your message..." maxlength="500">
+                    <button id="send-chat" class="send-btn" disabled>
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+                            <path d="M2,21L23,12L2,3V10L17,12L2,14V21Z"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
+
