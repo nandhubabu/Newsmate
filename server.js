@@ -315,6 +315,9 @@ app.get('/api/news', async (req, res) => {
     console.log(`\n📰 Request: ${countryName} [${country}] | Category: ${category} | Query: "${q}"`);
 
     const sendAndCache = (payload) => {
+        if (payload.articles && Array.isArray(payload.articles)) {
+            payload.articles.sort((a, b) => new Date(b.publishedAt || 0).getTime() - new Date(a.publishedAt || 0).getTime());
+        }
         newsCache.set(cacheKey, payload);
         return res.json({
             ...payload,

@@ -1383,16 +1383,18 @@ class NewsMateApp {
     formatTimeAgo(dateString) {
         if (!dateString) return 'Recent';
         const date = new Date(dateString);
+        if (isNaN(date.getTime())) return 'Recent';
         const now = new Date();
-        const diffMs = Math.abs(now - date);
+        const diffMs = now - date;
+
+        if (diffMs < 60000) return 'Just now';
         const diffMinutes = Math.floor(diffMs / (1000 * 60));
         const diffHours = Math.floor(diffMinutes / 60);
         const diffDays = Math.floor(diffHours / 24);
 
-        if (diffMinutes < 1) return 'Just now';
         if (diffMinutes < 60) return `${diffMinutes}m ago`;
         if (diffHours < 24) return `${diffHours}h ago`;
-        if (diffDays === 1) return 'Yesterday';
+        if (diffDays === 1) return '1d ago';
         return `${diffDays}d ago`;
     }
 

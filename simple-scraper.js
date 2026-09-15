@@ -4,25 +4,31 @@ const axios = require('axios');
 const rssFeeds = {
     countries: {
         'us': [
+            { name: 'Google News US', url: 'https://news.google.com/rss?hl=en-US&gl=US&ceid=US:en' },
             { name: 'NPR News', url: 'https://feeds.npr.org/1001/rss.xml' },
             { name: 'BBC US & Canada', url: 'https://feeds.bbci.co.uk/news/world/us_and_canada/rss.xml' },
             { name: 'PBS NewsHour', url: 'https://www.pbs.org/newshour/feeds/rss/headlines' }
         ],
         'gb': [
+            { name: 'Google News UK', url: 'https://news.google.com/rss?hl=en-GB&gl=GB&ceid=GB:en' },
             { name: 'BBC UK News', url: 'https://feeds.bbci.co.uk/news/uk/rss.xml' },
             { name: 'Sky News UK', url: 'https://feeds.skynews.com/feeds/rss/uk.xml' }
         ],
         'in': [
+            { name: 'Google News India', url: 'https://news.google.com/rss?hl=en-IN&gl=IN&ceid=IN:en' },
             { name: 'The Hindu', url: 'https://www.thehindu.com/news/feeder/default.rss' },
             { name: 'NDTV Top Stories', url: 'https://feeds.feedburner.com/ndtvnews-top-stories' }
         ],
         'au': [
+            { name: 'Google News Australia', url: 'https://news.google.com/rss?hl=en-AU&gl=AU&ceid=AU:en' },
             { name: 'ABC News Australia', url: 'https://www.abc.net.au/news/feed/51120/rss.xml' }
         ],
         'ca': [
+            { name: 'Google News Canada', url: 'https://news.google.com/rss?hl=en-CA&gl=CA&ceid=CA:en' },
             { name: 'CBC Top Stories', url: 'https://rss.cbc.ca/lineup/topstories.xml' }
         ],
         'world': [
+            { name: 'Google World News', url: 'https://news.google.com/rss/topics/CAAqJggKIiBDQkFTRWdvSUwyMHZNRGx1YlY4U0FtVnVHZ0pWVXlnQVAB?hl=en-US&gl=US&ceid=US:en' },
             { name: 'BBC World News', url: 'https://feeds.bbci.co.uk/news/world/rss.xml' },
             { name: 'Al Jazeera English', url: 'https://www.aljazeera.com/xml/rss/all.xml' },
             { name: 'NPR World', url: 'https://feeds.npr.org/1004/rss.xml' }
@@ -30,29 +36,35 @@ const rssFeeds = {
     },
     categories: {
         'technology': [
+            { name: 'Google Tech Wire', url: 'https://news.google.com/rss/headlines/section/topic/TECHNOLOGY?hl=en-US&gl=US&ceid=US:en' },
             { name: 'The Verge', url: 'https://www.theverge.com/rss/index.xml' },
             { name: 'TechCrunch', url: 'https://techcrunch.com/feed/' },
             { name: 'Ars Technica', url: 'https://feeds.arstechnica.com/arstechnica/index' },
             { name: 'Wired Tech', url: 'https://www.wired.com/feed/category/gear/latest/rss' }
         ],
         'business': [
+            { name: 'Google Finance & Markets', url: 'https://news.google.com/rss/headlines/section/topic/BUSINESS?hl=en-US&gl=US&ceid=US:en' },
             { name: 'CNBC Top News', url: 'https://search.cnbc.com/rs/search/view.html?partnerId=2000&keywords=business&format=rss' },
             { name: 'MarketWatch', url: 'https://feeds.content.dowjones.io/public/rss/mw_topstories' },
             { name: 'BBC Business', url: 'https://feeds.bbci.co.uk/news/business/rss.xml' }
         ],
         'science': [
+            { name: 'Google Science Wire', url: 'https://news.google.com/rss/headlines/section/topic/SCIENCE?hl=en-US&gl=US&ceid=US:en' },
             { name: 'ScienceDaily', url: 'https://www.sciencedaily.com/rss/all.xml' },
             { name: 'BBC Science', url: 'https://feeds.bbci.co.uk/news/science_and_environment/rss.xml' }
         ],
         'entertainment': [
+            { name: 'Google Entertainment', url: 'https://news.google.com/rss/headlines/section/topic/ENTERTAINMENT?hl=en-US&gl=US&ceid=US:en' },
             { name: 'BBC Entertainment', url: 'https://feeds.bbci.co.uk/news/entertainment_and_arts/rss.xml' },
             { name: 'Variety', url: 'https://variety.com/feed/' }
         ],
         'sports': [
+            { name: 'Google Sports Wire', url: 'https://news.google.com/rss/headlines/section/topic/SPORTS?hl=en-US&gl=US&ceid=US:en' },
             { name: 'BBC Sport', url: 'https://feeds.bbci.co.uk/sport/rss.xml' },
             { name: 'ESPN Top News', url: 'https://www.espn.com/espn/rss/news' }
         ],
         'health': [
+            { name: 'Google Health Wire', url: 'https://news.google.com/rss/headlines/section/topic/HEALTH?hl=en-US&gl=US&ceid=US:en' },
             { name: 'BBC Health', url: 'https://feeds.bbci.co.uk/news/health/rss.xml' },
             { name: 'NPR Health', url: 'https://feeds.npr.org/1128/rss.xml' }
         ]
@@ -223,12 +235,21 @@ async function getLiveFallbackNews(country = 'us', category = 'general') {
 
     // Deduplicate by title
     const seen = new Set();
-    return articles.filter(art => {
+    const unique = articles.filter(art => {
         const normalized = art.title.toLowerCase().trim();
         if (!normalized || seen.has(normalized)) return false;
         seen.add(normalized);
         return true;
-    }).slice(0, 30);
+    });
+
+    // Strictly sort by publishedAt descending so freshest breaking news is on top
+    unique.sort((a, b) => {
+        const timeA = new Date(a.publishedAt || 0).getTime();
+        const timeB = new Date(b.publishedAt || 0).getTime();
+        return timeB - timeA;
+    });
+
+    return unique.slice(0, 30);
 }
 
 module.exports = {
