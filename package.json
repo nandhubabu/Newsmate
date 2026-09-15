@@ -5,7 +5,9 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "nodemon server.js"
+    "dev": "nodemon server.js",
+    "lint": "node -c server.js chatbot.js simple-scraper.js test/health-check.js",
+    "test": "node test/health-check.js"
   },
   "author": "Nandhu",
   "license": "ISC",

@@ -28,26 +28,8 @@ jobs:
       - name: Install dependencies
         run: npm ci || npm install
 
-      - name: Verify JavaScript syntax
-        run: |
-          node -c server.js
-          node -c chatbot.js
-          node -c simple-scraper.js
+      - name: Verify JavaScript Syntax & Linter
+        run: npm run lint
 
-      - name: Verify Server Engine Startup & Endpoint Health
-        run: |
-          node -e "
-          process.env.PORT = '3001';
-          const axios = require('axios');
-          require('./server');
-          setTimeout(async () => {
-            try {
-              const res = await axios.get('http://localhost:3001/api/health');
-              console.log('✅ Server Health Check Passed:', res.data.name, res.data.version);
-              process.exit(0);
-            } catch(err) {
-              console.error('❌ Health check failed:', err.message);
-              process.exit(1);
-            }
-          }, 2000);
-          "
+      - name: Run NewsMate Automated Verification Suite
+        run: npm test

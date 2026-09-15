@@ -3,6 +3,7 @@
 > An advanced editorial news intelligence platform delivering real-time global dispatches, in-app full article readability extraction, in-memory caching, AI executive summaries, and hands-free text-to-speech listening.
 
 [![CI / Build Verification](https://github.com/nandhubabu/Newsmate/actions/workflows/ci.yml/badge.svg)](https://github.com/nandhubabu/Newsmate/actions/workflows/ci.yml)
+[![Version Control & Release](https://github.com/nandhubabu/Newsmate/actions/workflows/version-release.yml/badge.svg)](https://github.com/nandhubabu/Newsmate/actions/workflows/version-release.yml)
 [![Node.js](https://img.shields.io/badge/Node.js-%3E%3D14.0.0-339933?style=flat-square&logo=node.js)](https://nodejs.org)
 [![Express](https://img.shields.io/badge/Express-5.x-000000?style=flat-square&logo=express)](https://expressjs.com)
 [![Status](https://img.shields.io/badge/Status-Active%20Production-10B981?style=flat-square)]()
@@ -61,9 +62,12 @@ Built with a resilient **Zero-Key Architecture** and a sub-15ms **In-Memory Cach
 - Compiles current top stories across technology, markets, and world affairs into a consolidated 60-second broadcast memo.
 - Integrated "Listen to Briefing" audio player and one-click copy button.
 
-### 🔖 7. Bookmarks & Offline Reading List
+### 🔖 7. Bookmarks Knowledge Hub & Multi-Format Export
 - Save stories with 1 click; stored locally in `localStorage`.
 - Dedicated slide-over drawer with unread counter badges, quick removal, and reading history.
+- **Export to Markdown**: Generates an Obsidian / Notion ready `.md` digest file with metadata, links, excerpts, and timestamps.
+- **Export to JSON**: Creates a full portable `.json` backup of all saved reading lists for archival and programmatic analysis.
+- **Print & PDF Mode**: Clean broadsheet print stylesheet (`@media print`) that strips navigation, ads, and UI chrome, producing clean PDFs.
 
 ### 🏷️ 8. Multi-Category Navigation & Full-Text Search
 - Filter dispatches by sector:
@@ -234,12 +238,29 @@ Returns system status, active API providers, memory cache statistics, and suppor
 
 ---
 
-## 🤖 GitHub Actions CI Pipeline
+## 🤖 Version Control & Automation via GitHub Actions
 
-The project includes an automated GitHub Actions workflow (`.github/workflows/ci.yml`) that executes on every push and pull request to `main`:
-- Matrix testing across Node.js versions (`18.x`, `20.x`, `22.x`).
-- JavaScript syntax validation for server and scraper routines.
-- Automated local server spin-up and health check API verification.
+NewsMate utilizes a dual GitHub Actions pipeline configured in `.github/workflows/`:
+
+### 1. Continuous Integration & Quality Suite (`ci.yml`)
+- **Triggers**: On every push and pull request to `main`.
+- **Matrix Testing**: Node.js `18.x`, `20.x`, and `22.x` environments.
+- **Syntax & Linting**: `npm run lint` validates server, scraper, and chatbot scripts.
+- **Verification Suite**: `npm test` runs comprehensive automated checks against `/api/health`, `/api/markets`, in-memory cache validation (`X-Cache: HIT`), and zero-key RSS fallback dispatches.
+
+### 2. Version Control & Automated Release Pipeline (`version-release.yml`)
+- **Triggers**: On merge/push to `main` branch (and manual workflow dispatch).
+- **Semantic Versioning**: Automatically checks `package.json` version against repository tags.
+- **Automated Git Tagging**: Generates official `vX.Y.Z` annotated tags on release.
+- **Automated Release Notes & Changelog**: Compiles git commit history between releases and publishes a formal GitHub Release via `softprops/action-gh-release`.
+
+```bash
+# Run local verification suite identically to CI
+npm test
+
+# Run syntax linting
+npm run lint
+```
 
 ---
 

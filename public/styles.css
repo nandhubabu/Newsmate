@@ -1774,6 +1774,46 @@ a {
     text-decoration: underline;
 }
 
+.drawer-export-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.55rem 1.25rem;
+    background: var(--bg-surface);
+    border-bottom: 1px solid var(--border-hairline);
+    font-size: 0.76rem;
+}
+
+.export-label {
+    font-family: var(--font-mono);
+    color: var(--text-muted);
+    font-size: 0.68rem;
+    text-transform: uppercase;
+}
+
+.export-btns-group {
+    display: flex;
+    gap: 0.4rem;
+}
+
+.export-tool-btn {
+    background: var(--bg-surface-elevated);
+    border: 1px solid var(--border-subtle);
+    color: var(--text-secondary);
+    padding: 0.25rem 0.6rem;
+    border-radius: var(--radius-sm);
+    font-size: 0.72rem;
+    font-weight: 600;
+    transition: all var(--transition-fast);
+}
+
+.export-tool-btn:hover {
+    color: var(--text-primary);
+    border-color: var(--accent-gold);
+    background: var(--bg-muted);
+}
+
+
 .drawer-list {
     flex: 1;
     overflow-y: auto;
@@ -2172,5 +2212,50 @@ a {
     }
     .floating-audio-bar {
         width: calc(100% - 1.5rem);
+    }
+}
+
+/* PRINT & ARCHIVAL EXPORT STYLING */
+@media print {
+    .top-wire-bar,
+    .masthead-actions,
+    .masthead-search-bar,
+    .market-telemetry-bar,
+    .country-nav,
+    .category-ribbon,
+    .feed-toolbar,
+    .site-footer,
+    .floating-audio-bar,
+    .tool-action-btn,
+    .modal-close-btn,
+    .drawer-export-bar,
+    .clear-all-btn,
+    .copilot-drawer {
+        display: none !important;
+    }
+
+    body, .app-shell, .bookmarks-drawer {
+        background: white !important;
+        color: #111 !important;
+        box-shadow: none !important;
+        width: 100% !important;
+        position: static !important;
+    }
+
+    .bookmarks-drawer {
+        border-left: none !important;
+        height: auto !important;
+    }
+
+    .bookmark-item-card {
+        border: 1px solid #ddd !important;
+        page-break-inside: avoid;
+        margin-bottom: 1rem;
+        background: white !important;
+    }
+
+    .bm-title {
+        color: #111 !important;
+        font-size: 1.1rem !important;
     }
 }

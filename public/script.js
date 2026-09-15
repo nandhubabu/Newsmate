@@ -60,8 +60,10 @@ class NewsMateApp {
             bookmarksDrawerOverlay: document.getElementById('bookmarks-drawer-overlay'),
             bookmarksList: document.getElementById('bookmarks-list'),
             bookmarksCount: document.getElementById('bookmarks-count'),
-            savedItemsCounter: document.getElementById('saved-items-counter'),
             clearAllBookmarksBtn: document.getElementById('clear-all-bookmarks-btn'),
+            exportMarkdownBtn: document.getElementById('export-markdown-btn'),
+            exportJsonBtn: document.getElementById('export-json-btn'),
+            printBookmarksBtn: document.getElementById('print-bookmarks-btn'),
 
             // Audio Player Bar & Queue
             audioPlayerBar: document.getElementById('audio-player-bar'),
@@ -224,6 +226,15 @@ class NewsMateApp {
             if (e.target === this.dom.bookmarksDrawerOverlay) this.closeBookmarksDrawer();
         });
         this.dom.clearAllBookmarksBtn.addEventListener('click', () => this.clearAllBookmarks());
+        if (this.dom.exportMarkdownBtn) {
+            this.dom.exportMarkdownBtn.addEventListener('click', () => this.exportBookmarksAsMarkdown());
+        }
+        if (this.dom.exportJsonBtn) {
+            this.dom.exportJsonBtn.addEventListener('click', () => this.exportBookmarksAsJson());
+        }
+        if (this.dom.printBookmarksBtn) {
+            this.dom.printBookmarksBtn.addEventListener('click', () => this.printBookmarks());
+        }
 
         // Audio Controls & Queue
         this.dom.audioToggleBtn.addEventListener('click', () => this.toggleAudioPlayback());
@@ -1189,6 +1200,76 @@ class NewsMateApp {
         this.updateBookmarksBadge();
         this.renderBookmarksList();
         this.filterAndRenderArticles();
+    }
+
+    exportBookmarksAsMarkdown() {
+        if (this.bookmarks.length === 0) {
+            this.showToast('No bookmarked stories to export');
+            return;
+        }
+
+        const dateStr = new Date().toISOString().split('T')[0];
+        let md = `# 📰 NewsMate Intelligence — Reading List\n`;
+        md += `*Exported on ${new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })} • ${this.bookmarks.length} Saved Dispatches*\n\n`;
+        md += `---\n\n`;
+
+        this.bookmarks.forEach((bm, i) => {
+            md += `### ${i + 1}. [${bm.title}](${bm.url})\n`;
+            md += `- **Source**: ${bm.source?.name || 'Wire'}\n`;
+            if (bm.publishedAt) md += `- **Published**: ${new Date(bm.publishedAt).toLocaleString()}\n`;
+            if (bm.savedAt) md += `- **Archived**: ${new Date(bm.savedAt).toLocaleString()}\n`;
+            if (bm.description) md += `\n> ${bm.description.trim()}\n`;
+            md += `\n[Read Original Article](${bm.url})\n\n---\n\n`;
+        });
+
+        const blob = new Blob([md], { type: 'text/markdown;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `newsmate-reading-list-${dateStr}.md`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        this.showToast(`Exported ${this.bookmarks.length} stories as Markdown`);
+    }
+
+    exportBookmarksAsJson() {
+        if (this.bookmarks.length === 0) {
+            this.showToast('No bookmarked stories to export');
+            return;
+        }
+
+        const dateStr = new Date().toISOString().split('T')[0];
+        const payload = {
+            application: 'NewsMate Intelligence Chronicle',
+            exportedAt: new Date().toISOString(),
+            totalStories: this.bookmarks.length,
+            bookmarks: this.bookmarks
+        };
+
+        const jsonStr = JSON.stringify(payload, null, 2);
+        const blob = new Blob([jsonStr], { type: 'application/json;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `newsmate-bookmarks-${dateStr}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        this.showToast(`Exported ${this.bookmarks.length} stories as JSON`);
+    }
+
+    printBookmarks() {
+        if (this.bookmarks.length === 0) {
+            this.showToast('No bookmarked stories to print');
+            return;
+        }
+        this.showToast('Opening print preview...');
+        setTimeout(() => window.print(), 200);
     }
 
     /* ==========================================================================

@@ -399,7 +399,23 @@
                 <span id="saved-items-counter">0 stories saved locally</span>
                 <button class="clear-all-btn" id="clear-all-bookmarks-btn">Clear All</button>
             </div>
+            <!-- EXPORT ACTION TOOLBAR -->
+            <div class="drawer-export-bar">
+                <span class="export-label">Export Reading List:</span>
+                <div class="export-btns-group">
+                    <button class="export-tool-btn" id="export-markdown-btn" title="Export as clean Markdown for Obsidian / Notion">
+                        <span>📝 Markdown</span>
+                    </button>
+                    <button class="export-tool-btn" id="export-json-btn" title="Export as JSON backup">
+                        <span>💾 JSON</span>
+                    </button>
+                    <button class="export-tool-btn" id="print-bookmarks-btn" title="Print or save as clean PDF">
+                        <span>🖨️ Print/PDF</span>
+                    </button>
+                </div>
+            </div>
             <div class="drawer-list" id="bookmarks-list">
+
                 <div class="empty-drawer-state">
                     <span class="empty-icon">📰</span>
                     <p>No bookmarked stories yet.</p>
