@@ -475,6 +475,7 @@ class NewsMateApp {
     async fetchMarkets() {
         try {
             const res = await fetch('/api/markets');
+            if (!res.ok) return;
             const data = await res.json();
             if (data.status === 'ok' && data.indices && this.dom.marketTickersScroll) {
                 this.dom.marketTickersScroll.innerHTML = data.indices.map(idx => `

@@ -10,8 +10,9 @@ process.env.NODE_ENV = 'test';
 
 console.log('🧪 Starting NewsMate Automated Verification Suite...');
 
-// Load server
-require('../server');
+// Load server and start test listener
+const app = require('../server');
+const server = app.listen(3999);
 
 function makeRequest(path) {
     return new Promise((resolve, reject) => {
@@ -59,9 +60,10 @@ setTimeout(async () => {
         console.log(`   ✅ Passed: ${newsRes.body.articles.length} news dispatches returned`);
 
         console.log('\n🎉 ALL SYSTEM VERIFICATION CHECKS PASSED!');
-        process.exit(0);
+        server.close(() => process.exit(0));
     } catch (err) {
         console.error('\n❌ Verification failed:', err.message);
+        if (server) server.close();
         process.exit(1);
     }
-}, 1500);
+}, 1000);

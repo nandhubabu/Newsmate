@@ -112,6 +112,8 @@ Newsmate/
 │   └── workflows/
 │       ├── ci.yml                 # GitHub Actions CI automated quality pipeline
 │       └── version-release.yml    # GitHub Actions automated versioning & release pipeline
+├── api/
+│   └── index.js                   # Vercel Serverless Function entry point
 ├── public/
 │   ├── index.html                 # Semantic editorial layout & modal containers
 │   ├── styles.css                 # Modern design system (Midnight & Paper themes)
@@ -122,6 +124,7 @@ Newsmate/
 │   └── sw.js                      # Service Worker caching & offline engine
 ├── test/
 │   └── health-check.js            # Automated verification test suite
+├── vercel.json                    # Vercel serverless rewrite & routing rules
 ├── server.js                      # Express server, memory cache, extractor & API endpoints
 ├── chatbot.js                     # AI Copilot & 3-bullet summarization engine
 ├── simple-scraper.js              # Zero-Key RSS and open wire feed engine
@@ -183,6 +186,20 @@ Open your browser and visit:
 ```
 http://localhost:3000
 ```
+
+### ☁️ Deploying to Vercel
+
+NewsMate is configured for native **Vercel Serverless Functions**:
+- `vercel.json` rewrites all `/api/*` requests directly to `api/index.js`.
+- The Express app handles all endpoints serverlessly with zero code modification.
+- Frontend static assets (`public/`) are served at the edge automatically.
+
+To deploy via the Vercel CLI:
+```bash
+npm i -g vercel
+vercel
+```
+Or simply connect your GitHub repository to Vercel; all pushes to `main` auto-deploy seamlessly.
 
 ---
 

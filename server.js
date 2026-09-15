@@ -647,11 +647,15 @@ app.get('/api/health', (req, res) => {
     });
 });
 
-app.listen(PORT, () => {
-    console.log(`\n======================================================`);
-    console.log(`📰 NewsMate 2.1 Server running on http://localhost:${PORT}`);
-    console.log(`⚡ In-Memory Cache Active (5m News / 2h Articles)`);
-    console.log(`🔑 Configured APIs: ${newsAPIs.filter(a => a.apiKey).map(a => a.name).join(', ') || 'None (Zero-Key RSS Fallback Active)'}`);
-    console.log(`🤖 AI Engine: ${process.env.GEMINI_API_KEY ? 'Gemini 1.5 Flash' : 'Heuristic Editorial Fallback'}`);
-    console.log(`======================================================\n`);
-});
+if (process.env.NODE_ENV !== 'test' && !process.env.VERCEL) {
+    app.listen(PORT, () => {
+        console.log(`\n======================================================`);
+        console.log(`📰 NewsMate 2.1 Server running on http://localhost:${PORT}`);
+        console.log(`⚡ In-Memory Cache Active (5m News / 2h Articles)`);
+        console.log(`🔑 Configured APIs: ${newsAPIs.filter(a => a.apiKey).map(a => a.name).join(', ') || 'None (Zero-Key RSS Fallback Active)'}`);
+        console.log(`🤖 AI Engine: ${process.env.GEMINI_API_KEY ? 'Gemini 1.5 Flash' : 'Heuristic Editorial Fallback'}`);
+        console.log(`======================================================\n`);
+    });
+}
+
+module.exports = app;
