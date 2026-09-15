@@ -36,10 +36,13 @@ Built with a resilient **Zero-Key Architecture** and a sub-15ms **In-Memory Cach
 - 5-minute auto-expiring news feed cache and 2-hour extracted article cache.
 - Drastically slashes network requests and prevents third-party API rate-limiting.
 
-### 🔊 4. Web Speech Audio (TTS) Reader
+### 🔊 4. Web Speech Audio (TTS) Reader & Drive-Time Playlist Queue
 - Listen to any headline or **full extracted article** hands-free via the browser's native **Web Speech API**.
 - Fixed floating audio player bar at the bottom with real-time animated waveform indicators.
-- Full playback controls: Play, Pause, Resume, Stop, and Speech Rate cycling (`1.0x`, `1.25x`, `1.5x`, `2.0x`).
+- **Continuous Drive-Time Playlist**: Add stories to an audio queue with the `+🎧` button. The player automatically advances from story to story.
+- **Queue Management**: Slide-over queue drawer showing all scheduled stories with track numbers, play, remove, and clear controls.
+- Full playback controls: Previous Story, Play/Pause, Next Story, Stop, and Speech Rate cycling (`1.0x`, `1.25x`, `1.5x`, `2.0x`).
+
 
 ### ⚡ 5. AI 3-Bullet Executive Summaries (TL;DR)
 - Instant one-click takeaway drawer right inside cards and the focus reader.

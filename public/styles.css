@@ -1184,6 +1184,44 @@ a {
     border-color: var(--accent-coral);
 }
 
+.audio-nav-btn, .audio-queue-btn {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-surface);
+    color: var(--text-primary);
+    border: 1px solid var(--border-subtle);
+    font-size: 0.85rem;
+    position: relative;
+    transition: all var(--transition-fast);
+}
+
+.audio-nav-btn:hover, .audio-queue-btn:hover {
+    background: var(--bg-surface-elevated);
+    border-color: var(--border-accent);
+}
+
+.queue-badge {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    background: var(--accent-coral);
+    color: white;
+    font-family: var(--font-mono);
+    font-size: 0.6rem;
+    font-weight: 700;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+
 /* ==========================================================================
    MODALS (READER & BRIEFING)
    ========================================================================== */

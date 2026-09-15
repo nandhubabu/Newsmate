@@ -18,7 +18,9 @@ class NewsMateApp {
         this.currentBriefingText = '';
         this.readerFontSize = 1.15; // rem
 
-        // Audio Engine State
+        // Audio Engine & Drive-Time Queue State
+        this.audioQueue = [];
+        this.audioQueueIndex = 0;
         this.audioSpeech = {
             synth: window.speechSynthesis,
             utterance: null,
@@ -61,13 +63,25 @@ class NewsMateApp {
             savedItemsCounter: document.getElementById('saved-items-counter'),
             clearAllBookmarksBtn: document.getElementById('clear-all-bookmarks-btn'),
 
-            // Audio Player Bar
+            // Audio Player Bar & Queue
             audioPlayerBar: document.getElementById('audio-player-bar'),
             audioPlayerTitle: document.getElementById('audio-player-title'),
+            audioPlayerStatus: document.getElementById('audio-player-status'),
+            audioQueueIndicator: document.getElementById('audio-queue-indicator'),
+            audioPrevBtn: document.getElementById('audio-prev-btn'),
+            audioNextBtn: document.getElementById('audio-next-btn'),
             audioSpeedBtn: document.getElementById('audio-speed-btn'),
             audioToggleBtn: document.getElementById('audio-toggle-btn'),
+            audioQueueBtn: document.getElementById('audio-queue-btn'),
+            audioQueueBadge: document.getElementById('audio-queue-badge'),
             audioStopBtn: document.getElementById('audio-stop-btn'),
             audioWaves: document.getElementById('audio-waves'),
+            audioQueueOverlay: document.getElementById('audio-queue-overlay'),
+            closeAudioQueueBtn: document.getElementById('close-audio-queue'),
+            audioQueueList: document.getElementById('audio-queue-list'),
+            queueItemsCounter: document.getElementById('queue-items-counter'),
+            clearAllQueueBtn: document.getElementById('clear-all-queue-btn'),
+
 
             // Reader Modal
             readerOverlay: document.getElementById('reader-modal-overlay'),
@@ -202,13 +216,22 @@ class NewsMateApp {
         });
         this.dom.clearAllBookmarksBtn.addEventListener('click', () => this.clearAllBookmarks());
 
-        // Audio Controls
+        // Audio Controls & Queue
         this.dom.audioToggleBtn.addEventListener('click', () => this.toggleAudioPlayback());
         this.dom.audioStopBtn.addEventListener('click', () => this.stopAudio());
         this.dom.audioSpeedBtn.addEventListener('click', () => this.cycleAudioSpeed());
+        this.dom.audioPrevBtn.addEventListener('click', () => this.playPrevQueuedStory());
+        this.dom.audioNextBtn.addEventListener('click', () => this.playNextQueuedStory());
+        this.dom.audioQueueBtn.addEventListener('click', () => this.openAudioQueueDrawer());
+        this.dom.closeAudioQueueBtn.addEventListener('click', () => this.closeAudioQueueDrawer());
+        this.dom.audioQueueOverlay.addEventListener('click', (e) => {
+            if (e.target === this.dom.audioQueueOverlay) this.closeAudioQueueDrawer();
+        });
+        this.dom.clearAllQueueBtn.addEventListener('click', () => this.clearAudioQueue());
 
         // Focus Reader Modal
         this.dom.closeReaderBtn.addEventListener('click', () => this.closeReaderModal());
+
         this.dom.readerOverlay.addEventListener('click', (e) => {
             if (e.target === this.dom.readerOverlay) this.closeReaderModal();
         });
@@ -279,7 +302,9 @@ class NewsMateApp {
                 this.closeBriefingModal();
                 this.closeBookmarksDrawer();
                 this.closeCopilotDrawer();
+                this.closeAudioQueueDrawer();
             }
+
         });
     }
 
@@ -479,6 +504,9 @@ class NewsMateApp {
                         <button class="tool-action-btn" onclick="window.newsApp.playArticleAudioByIndex(${globalIndex})">
                             <span>🔊 Listen</span>
                         </button>
+                        <button class="tool-action-btn" title="Add to Drive-Time Audio Queue" onclick="window.newsApp.addToAudioQueueByIndex(${globalIndex})">
+                            <span>+🎧 Queue</span>
+                        </button>
                         <button class="tool-action-btn ai-btn" onclick="window.newsApp.openReaderModal(${globalIndex})">
                             <span>⚡ AI Summary</span>
                         </button>
@@ -532,15 +560,18 @@ class NewsMateApp {
                         </div>
 
                         <div class="card-footer-actions">
-                            <div style="display: flex; gap: 0.4rem;">
+                            <div style="display: flex; gap: 0.35rem; flex-wrap: wrap;">
                                 <button class="tool-action-btn" title="Listen with Text-to-Speech" onclick="window.newsApp.playArticleAudioByIndex(${globalIndex})">
                                     <span>🔊 Listen</span>
+                                </button>
+                                <button class="tool-action-btn" title="Add to Audio Queue" onclick="window.newsApp.addToAudioQueueByIndex(${globalIndex})">
+                                    <span>+🎧</span>
                                 </button>
                                 <button class="tool-action-btn ai-btn" title="Generate 3-Bullet AI Takeaways" onclick="window.newsApp.toggleCardAiSummary(${globalIndex})">
                                     <span>⚡ TL;DR</span>
                                 </button>
                             </div>
-                            <div style="display: flex; gap: 0.4rem;">
+                            <div style="display: flex; gap: 0.35rem;">
                                 <button class="tool-action-btn ${isBookmarked ? 'active' : ''}" title="Save to Reading List" onclick="window.newsApp.toggleBookmarkByIndex(${globalIndex})">
                                     <span>${isBookmarked ? '🔖' : '🔖'}</span>
                                 </button>
@@ -554,6 +585,7 @@ class NewsMateApp {
             `;
         }).join('');
     }
+
 
     /* ==========================================================================
        AI EXECUTIVE SUMMARY (IN-CARD & MODAL)
@@ -761,7 +793,7 @@ class NewsMateApp {
     }
 
 
-    speakText(title, text) {
+    speakText(title, text, onEndCallback = null) {
         if (!('speechSynthesis' in window)) {
             this.showToast('Speech synthesis not supported by this browser');
             return;
@@ -787,12 +819,17 @@ class NewsMateApp {
             this.dom.audioPlayerBar.classList.remove('hidden');
             this.dom.audioToggleBtn.textContent = '⏸';
             this.dom.audioWaves.style.opacity = '1';
+            this.updateAudioQueueUI();
         };
 
         utterance.onend = () => {
             this.audioSpeech.isPlaying = false;
             this.audioSpeech.isPaused = false;
-            this.dom.audioPlayerBar.classList.add('hidden');
+            if (typeof onEndCallback === 'function') {
+                onEndCallback();
+            } else {
+                this.dom.audioPlayerBar.classList.add('hidden');
+            }
         };
 
         utterance.onerror = (e) => {
@@ -828,6 +865,7 @@ class NewsMateApp {
         this.audioSpeech.isPlaying = false;
         this.audioSpeech.isPaused = false;
         this.dom.audioPlayerBar.classList.add('hidden');
+        this.updateAudioQueueUI();
     }
 
     cycleAudioSpeed() {
@@ -838,6 +876,142 @@ class NewsMateApp {
         this.dom.audioSpeedBtn.textContent = `${nextRate}x`;
         this.showToast(`Speech rate set to ${nextRate}x`);
     }
+
+    /* ==========================================================================
+       DRIVE-TIME AUDIO PLAYLIST & QUEUE ENGINE
+       ========================================================================== */
+    addToAudioQueueByIndex(index) {
+        const article = this.filteredArticles[index];
+        if (article) this.addToAudioQueue(article);
+    }
+
+    addToAudioQueue(article) {
+        this.audioQueue.push(article);
+        this.updateAudioQueueUI();
+        this.showToast(`Added to audio queue (${this.audioQueue.length} stories in playlist)`);
+
+        // If not playing, start playing from current track
+        if (!this.audioSpeech.isPlaying) {
+            this.audioQueueIndex = this.audioQueue.length - 1;
+            this.playQueuedStory(this.audioQueueIndex);
+        }
+    }
+
+    playQueuedStory(index) {
+        if (index < 0 || index >= this.audioQueue.length) return;
+        this.audioQueueIndex = index;
+        const article = this.audioQueue[index];
+        const prose = article.fullProse || article.description || 'Full report on the wire.';
+        const queuePrefix = `Story ${index + 1} of ${this.audioQueue.length}.`;
+        const textToRead = `${queuePrefix} ${article.title}. From ${article.source?.name || 'the wire'}. ${prose}`;
+
+        if (this.dom.audioPlayerStatus) {
+            this.dom.audioPlayerStatus.textContent = `QUEUE • ${index + 1} OF ${this.audioQueue.length}`;
+        }
+
+        this.speakText(article.title, textToRead, () => {
+            // Auto advance when track completes
+            if (this.audioQueue.length > 0 && this.audioQueueIndex < this.audioQueue.length - 1) {
+                this.playQueuedStory(this.audioQueueIndex + 1);
+            } else {
+                this.stopAudio();
+                this.showToast('Finished listening to audio playlist');
+            }
+        });
+    }
+
+    playNextQueuedStory() {
+        if (this.audioQueue.length === 0) return;
+        if (this.audioQueueIndex < this.audioQueue.length - 1) {
+            this.playQueuedStory(this.audioQueueIndex + 1);
+        } else {
+            this.showToast('Already at the last story in playlist');
+        }
+    }
+
+    playPrevQueuedStory() {
+        if (this.audioQueue.length === 0) return;
+        if (this.audioQueueIndex > 0) {
+            this.playQueuedStory(this.audioQueueIndex - 1);
+        } else {
+            this.showToast('Already at the first story in playlist');
+        }
+    }
+
+    openAudioQueueDrawer() {
+        this.renderAudioQueueList();
+        this.dom.audioQueueOverlay.classList.remove('hidden');
+    }
+
+    closeAudioQueueDrawer() {
+        this.dom.audioQueueOverlay.classList.add('hidden');
+    }
+
+    clearAudioQueue() {
+        this.audioQueue = [];
+        this.audioQueueIndex = 0;
+        this.updateAudioQueueUI();
+        this.renderAudioQueueList();
+        this.stopAudio();
+        this.showToast('Audio playlist cleared');
+    }
+
+    updateAudioQueueUI() {
+        const count = this.audioQueue.length;
+        if (this.dom.audioQueueBadge) {
+            this.dom.audioQueueBadge.textContent = count;
+        }
+        if (this.dom.queueItemsCounter) {
+            this.dom.queueItemsCounter.textContent = `${count} stor${count === 1 ? 'y' : 'ies'} queued`;
+        }
+        if (count > 0 && this.audioSpeech.isPlaying) {
+            this.dom.audioQueueIndicator.textContent = `• Queue (${this.audioQueueIndex + 1}/${count})`;
+        } else {
+            this.dom.audioQueueIndicator.textContent = '';
+        }
+    }
+
+    renderAudioQueueList() {
+        if (this.audioQueue.length === 0) {
+            this.dom.audioQueueList.innerHTML = `
+                <div class="empty-drawer-state">
+                    <span class="empty-icon">🎧</span>
+                    <p>Your audio playlist is empty.</p>
+                    <span class="empty-hint">Click the "+🎧" button on any card to queue stories for continuous listening.</span>
+                </div>
+            `;
+            return;
+        }
+
+        this.dom.audioQueueList.innerHTML = this.audioQueue.map((art, idx) => {
+            const isCurrent = idx === this.audioQueueIndex && this.audioSpeech.isPlaying;
+            return `
+                <div class="bookmark-item-card" style="${isCurrent ? 'border-color: var(--accent-gold); background: var(--bg-surface-elevated);' : ''}">
+                    <div class="bm-header">
+                        <span>#${idx + 1} • ${this.escapeHtml(art.source?.name || 'Wire')}</span>
+                        <span style="color: var(--accent-gold);">${isCurrent ? '▶ Now Playing' : ''}</span>
+                    </div>
+                    <h4 class="bm-title" onclick="window.newsApp.playQueuedStory(${idx})">
+                        ${this.escapeHtml(art.title)}
+                    </h4>
+                    <div class="bm-actions">
+                        <button class="bm-btn" onclick="window.newsApp.playQueuedStory(${idx})">▶ Play</button>
+                        <button class="bm-btn" onclick="window.newsApp.removeFromAudioQueue(${idx})">Remove</button>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    removeFromAudioQueue(index) {
+        this.audioQueue.splice(index, 1);
+        if (this.audioQueueIndex >= this.audioQueue.length) {
+            this.audioQueueIndex = Math.max(0, this.audioQueue.length - 1);
+        }
+        this.updateAudioQueueUI();
+        this.renderAudioQueueList();
+    }
+
 
     /* ==========================================================================
        BOOKMARKS SYSTEM
