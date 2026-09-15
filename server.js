@@ -2,9 +2,49 @@ const express = require('express');
 const path = require('path');
 const cors = require('cors');
 const axios = require('axios');
+const cheerio = require('cheerio');
 const NewsChatbot = require('./chatbot');
 const simpleScraper = require('./simple-scraper');
 require('dotenv').config();
+
+// ==========================================================================
+// IN-MEMORY HIGH-SPEED CACHE LAYER
+// ==========================================================================
+class MemoryCache {
+    constructor(defaultTtlSeconds = 300) {
+        this.store = new Map();
+        this.defaultTtl = defaultTtlSeconds * 1000;
+    }
+
+    get(key) {
+        const item = this.store.get(key);
+        if (!item) return null;
+        if (Date.now() > item.expiresAt) {
+            this.store.delete(key);
+            return null;
+        }
+        return item;
+    }
+
+    set(key, value, ttlSeconds) {
+        const ttl = ttlSeconds ? ttlSeconds * 1000 : this.defaultTtl;
+        this.store.set(key, {
+            data: value,
+            expiresAt: Date.now() + ttl,
+            cachedAt: Date.now()
+        });
+    }
+
+    stats() {
+        return {
+            itemsCount: this.store.size
+        };
+    }
+}
+
+// 5-minute news feed cache, 2-hour extracted article cache
+const newsCache = new MemoryCache(300);
+const articleCache = new MemoryCache(7200);
 
 // Initialize chatbot
 const chatbot = new NewsChatbot();
@@ -249,21 +289,44 @@ async function fetchNewsFromAPI(api, country, category, q) {
     throw new Error('No articles returned');
 }
 
-// Main News Endpoint with 4-Tier Zero-Key Resiliency
+// Main News Endpoint with In-Memory Cache and 4-Tier Zero-Key Resiliency
 app.get('/api/news', async (req, res) => {
     const country = (req.query.country || 'us').toLowerCase();
     const category = (req.query.category || 'general').toLowerCase();
     const q = req.query.q ? req.query.q.trim() : '';
     const countryName = getCountryName(country);
 
+    // 1. Check in-memory cache
+    const cacheKey = `news:${country}:${category}:${q}`;
+    const cachedItem = newsCache.get(cacheKey);
+    if (cachedItem) {
+        const cacheAgeSeconds = Math.round((Date.now() - cachedItem.cachedAt) / 1000);
+        res.setHeader('X-Cache', 'HIT');
+        res.setHeader('X-Cache-Age', `${cacheAgeSeconds}s`);
+        return res.json({
+            ...cachedItem.data,
+            cached: true,
+            cacheAgeSeconds
+        });
+    }
+
+    res.setHeader('X-Cache', 'MISS');
     console.log(`\n📰 Request: ${countryName} [${country}] | Category: ${category} | Query: "${q}"`);
+
+    const sendAndCache = (payload) => {
+        newsCache.set(cacheKey, payload);
+        return res.json({
+            ...payload,
+            cached: false
+        });
+    };
 
     // Step 1: Try Primary APIs (NewsAPI, Guardian, NewsData)
     for (const api of newsAPIs) {
         if (!api.apiKey) continue;
         try {
             const result = await fetchNewsFromAPI(api, country, category, q);
-            return res.json({
+            return sendAndCache({
                 ...result,
                 country: countryName,
                 countryCode: country,
@@ -281,7 +344,7 @@ app.get('/api/news', async (req, res) => {
         if (!api.apiKey) continue;
         try {
             const result = await fetchNewsFromAPI(api, country, category, q);
-            return res.json({
+            return sendAndCache({
                 ...result,
                 country: countryName,
                 countryCode: country,
@@ -300,7 +363,7 @@ app.get('/api/news', async (req, res) => {
         const fallbackArticles = await simpleScraper.getLiveFallbackNews(country, category);
         if (fallbackArticles && fallbackArticles.length > 0) {
             console.log(`✅ Live RSS & Open Feeds returned ${fallbackArticles.length} fresh articles`);
-            return res.json({
+            return sendAndCache({
                 status: 'ok',
                 articles: fallbackArticles,
                 apiSource: 'NewsMate Zero-Key RSS & Live Wire Engine',
@@ -315,7 +378,7 @@ app.get('/api/news', async (req, res) => {
         console.error('❌ RSS Fallback failed:', err.message);
     }
 
-    // Step 4: If everything genuinely failed (e.g. complete network cutoff)
+    // Step 4: If everything genuinely failed
     return res.status(503).json({
         error: `News temporarily unavailable for ${countryName}`,
         message: 'Could not reach upstream news wires or local feeds. Please verify internet connection.',
@@ -327,6 +390,88 @@ app.get('/api/news', async (req, res) => {
             'Select a different category (e.g. Technology or Business)'
         ]
     });
+});
+
+// Full-Article Readability Extractor Route
+app.get('/api/article/extract', async (req, res) => {
+    try {
+        const articleUrl = req.query.url;
+        if (!articleUrl || !articleUrl.startsWith('http')) {
+            return res.status(400).json({ error: 'A valid http/https URL is required' });
+        }
+
+        // Check cache
+        const cachedItem = articleCache.get(articleUrl);
+        if (cachedItem) {
+            res.setHeader('X-Cache', 'HIT');
+            return res.json({
+                ...cachedItem.data,
+                cached: true
+            });
+        }
+
+        console.log(`📖 Extracting full article: ${articleUrl}`);
+        const response = await axios.get(articleUrl, {
+            timeout: 12000,
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
+            }
+        });
+
+        const $ = cheerio.load(response.data);
+
+        // Strip clutter
+        $('script, style, nav, header, footer, aside, .ad, .ads, .advertisement, .social-share, .cookie-banner, .newsletter-signup, iframe, noscript').remove();
+
+        const title = $('meta[property="og:title"]').attr('content') || $('h1').first().text().trim();
+        const byline = $('meta[name="author"]').attr('content') || $('.author, [rel="author"], .byline').first().text().trim() || null;
+        const leadImage = $('meta[property="og:image"]').attr('content') || null;
+
+        const paragraphs = [];
+        const contentContainers = $('article, main, [itemprop="articleBody"], .article-body, .story-body, .entry-content, .post-content, .content');
+        const target = contentContainers.length > 0 ? contentContainers.first() : $('body');
+
+        target.find('p').each((i, el) => {
+            const text = $(el).text().replace(/\s+/g, ' ').trim();
+            if (text.length > 35 && 
+                !/copyright|all rights reserved|terms of service|privacy policy|cookies|subscribe|advertisement/i.test(text)) {
+                paragraphs.push(text);
+            }
+        });
+
+        const fullText = paragraphs.join('\n\n');
+        const wordCount = fullText.split(/\s+/).length;
+        const readTimeMinutes = Math.max(1, Math.ceil(wordCount / 200));
+
+        const extractedData = {
+            status: 'ok',
+            url: articleUrl,
+            title: title || 'Full Article',
+            byline,
+            leadImage,
+            paragraphs: paragraphs.slice(0, 35),
+            wordCount,
+            readTimeMinutes,
+            extractedAt: new Date().toISOString()
+        };
+
+        articleCache.set(articleUrl, extractedData);
+        res.setHeader('X-Cache', 'MISS');
+
+        res.json({
+            ...extractedData,
+            cached: false
+        });
+
+    } catch (err) {
+        console.warn(`Extraction failed for ${req.query.url}:`, err.message);
+        res.status(422).json({
+            error: 'Could not extract full article prose from this source.',
+            details: err.message,
+            fallbackUrl: req.query.url
+        });
+    }
 });
 
 // AI Article Summarization Endpoint
@@ -430,8 +575,12 @@ app.get('/api/health', (req, res) => {
     res.json({
         status: 'ok',
         name: 'NewsMate Global Chronicle',
-        version: '2.0.0',
+        version: '2.1.0',
         apis: apiStatus,
+        cache: {
+            newsCacheSize: newsCache.stats().itemsCount,
+            articleCacheSize: articleCache.stats().itemsCount
+        },
         ai: {
             gemini: process.env.GEMINI_API_KEY ? 'configured' : 'fallback_heuristic',
             chatbot: 'ready'
@@ -444,7 +593,8 @@ app.get('/api/health', (req, res) => {
 
 app.listen(PORT, () => {
     console.log(`\n======================================================`);
-    console.log(`📰 NewsMate 2.0 Server running on http://localhost:${PORT}`);
+    console.log(`📰 NewsMate 2.1 Server running on http://localhost:${PORT}`);
+    console.log(`⚡ In-Memory Cache Active (5m News / 2h Articles)`);
     console.log(`🔑 Configured APIs: ${newsAPIs.filter(a => a.apiKey).map(a => a.name).join(', ') || 'None (Zero-Key RSS Fallback Active)'}`);
     console.log(`🤖 AI Engine: ${process.env.GEMINI_API_KEY ? 'Gemini 1.5 Flash' : 'Heuristic Editorial Fallback'}`);
     console.log(`======================================================\n`);

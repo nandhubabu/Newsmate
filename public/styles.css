@@ -1295,6 +1295,38 @@ a {
     padding: 2rem 2.25rem;
 }
 
+.extractor-status-bar {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: var(--bg-surface-elevated);
+    border: 1px solid var(--border-subtle);
+    padding: 0.45rem 0.85rem;
+    border-radius: var(--radius-md);
+    font-family: var(--font-mono);
+    font-size: 0.76rem;
+    color: var(--accent-gold);
+    margin-bottom: 1.25rem;
+}
+
+.extractor-spinner {
+    display: inline-block;
+    animation: spin 1s linear infinite;
+}
+
+.full-article-badge {
+    display: inline-block;
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    color: var(--accent-emerald);
+    background: rgba(16, 185, 129, 0.12);
+    border: 1px solid rgba(16, 185, 129, 0.3);
+    padding: 0.2rem 0.6rem;
+    border-radius: var(--radius-sm);
+    margin-bottom: 1.25rem;
+}
+
+
 .reader-title {
     font-family: var(--font-serif);
     font-size: 2.2rem;

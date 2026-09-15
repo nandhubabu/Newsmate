@@ -631,17 +631,58 @@ class NewsMateApp {
         // Prose text formatting
         const desc = article.description || 'Full coverage is being monitored by our global correspondents.';
         this.dom.readerProse.innerHTML = `
-            <p>${this.escapeHtml(desc)}</p>
-            <p style="margin-top: 1rem; color: var(--text-muted); font-size: 0.95rem;">
-                <em>This dispatch was filed via authenticated news syndication. To review original wire credentials, quotes, or media attachments, access the full source publication via the external link below.</em>
+            <p id="reader-summary-lead">${this.escapeHtml(desc)}</p>
+            <div id="reader-extraction-container" style="margin-top: 1.25rem;">
+                <div class="extractor-status-bar" id="extractor-status-pill">
+                    <span class="extractor-spinner">↻</span>
+                    <span>Extracting full in-depth article text from wire...</span>
+                </div>
+            </div>
+            <p style="margin-top: 1.5rem; color: var(--text-muted); font-size: 0.9rem; border-top: 1px solid var(--border-hairline); padding-top: 1rem;">
+                <em>This dispatch was filed via authenticated news syndication. Access the original publication via the external link below.</em>
             </p>
         `;
+
+        // Fetch full article text if URL is valid
+        if (article.url && article.url.startsWith('http')) {
+            fetch(`/api/article/extract?url=${encodeURIComponent(article.url)}`)
+                .then(res => res.json())
+                .then(extracted => {
+                    const statusPill = document.getElementById('extractor-status-pill');
+                    const extractContainer = document.getElementById('reader-extraction-container');
+                    
+                    if (extracted.status === 'ok' && extracted.paragraphs && extracted.paragraphs.length > 0) {
+                        if (statusPill) statusPill.remove();
+                        this.dom.readerReadTime.textContent = `${extracted.readTimeMinutes} min read • ${extracted.wordCount} words`;
+                        if (extracted.byline) {
+                            this.dom.readerDate.textContent += ` • By ${extracted.byline}`;
+                        }
+                        
+                        if (extractContainer) {
+                            extractContainer.innerHTML = `
+                                <div class="full-article-badge">✓ Full In-Depth Story Extracted (${extracted.paragraphs.length} Paragraphs)</div>
+                                ${extracted.paragraphs.map(p => `<p style="margin-bottom: 1.25rem;">${this.escapeHtml(p)}</p>`).join('')}
+                            `;
+                        }
+
+                        // Attach full text to article for Audio TTS reader
+                        article.fullProse = extracted.paragraphs.join('. ');
+                    } else if (statusPill) {
+                        statusPill.innerHTML = `<span>✓ Summary wire ready. Full external publication linked below.</span>`;
+                    }
+                })
+                .catch(() => {
+                    const statusPill = document.getElementById('extractor-status-pill');
+                    if (statusPill) statusPill.remove();
+                });
+        }
 
         // AI Summary block inside Reader
         this.dom.readerAiTakeaways.innerHTML = '<li>Analyzing intelligence telemetry...</li>';
         this.dom.readerAiSentiment.textContent = 'Processing';
 
         this.dom.readerOverlay.classList.remove('hidden');
+
 
         // Fetch AI Takeaways
         try {
@@ -714,9 +755,11 @@ class NewsMateApp {
     }
 
     playArticleAudio(article) {
-        const textToRead = `${article.title}. From ${article.source?.name || 'the wire'}. ${article.description || ''}`;
+        const prose = article.fullProse || article.description || 'Full report on the wire.';
+        const textToRead = `${article.title}. From ${article.source?.name || 'the wire'}. ${prose}`;
         this.speakText(article.title, textToRead);
     }
+
 
     speakText(title, text) {
         if (!('speechSynthesis' in window)) {
