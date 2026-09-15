@@ -60,6 +60,7 @@ class NewsMateApp {
             bookmarksDrawerOverlay: document.getElementById('bookmarks-drawer-overlay'),
             bookmarksList: document.getElementById('bookmarks-list'),
             bookmarksCount: document.getElementById('bookmarks-count'),
+            savedItemsCounter: document.getElementById('saved-items-counter'),
             clearAllBookmarksBtn: document.getElementById('clear-all-bookmarks-btn'),
             exportMarkdownBtn: document.getElementById('export-markdown-btn'),
             exportJsonBtn: document.getElementById('export-json-btn'),
@@ -1147,8 +1148,12 @@ class NewsMateApp {
 
     updateBookmarksBadge() {
         const count = this.bookmarks.length;
-        this.dom.bookmarksCount.textContent = count;
-        this.dom.savedItemsCounter.textContent = `${count} stor${count === 1 ? 'y' : 'ies'} saved locally`;
+        if (this.dom.bookmarksCount) {
+            this.dom.bookmarksCount.textContent = count;
+        }
+        if (this.dom.savedItemsCounter) {
+            this.dom.savedItemsCounter.textContent = `${count} stor${count === 1 ? 'y' : 'ies'} saved locally`;
+        }
     }
 
     openBookmarksDrawer() {
