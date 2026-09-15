@@ -1,109 +1,410 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NewsMate - Global News Hub</title>
+    <title>NewsMate 2.0 — Global Intelligence Chronicle</title>
+    <meta name="description" content="An advanced editorial news intelligence platform with real-time global dispatches, AI executive summaries, and text-to-speech audio reader.">
+    
+    <!-- Google Fonts: Newsreader (Editorial Serif) + Plus Jakarta Sans (Interface) + JetBrains Mono (Telemetry) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,600;0,6..72,700;1,6..72,400&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <div class="container">
-        <header class="header">
-            <h1 class="app-title">📰 NewsMate</h1>
-            <p class="app-subtitle">Your Global News Companion</p>
-            
-            <div class="controls">
-                <div class="control-group">
-                    <label for="country-select">Select Country:</label>
-                    <select id="country-select" class="country-select">
-                        <option value="us">🇺🇸 United States</option>
-                        <option value="in">🇮🇳 India</option>
-                        <option value="gb">🇬🇧 United Kingdom</option>
-                        <option value="ca">🇨🇦 Canada</option>
-                        <option value="au">🇦🇺 Australia</option>
-                        <option value="de">🇩🇪 Germany</option>
-                        <option value="fr">🇫🇷 France</option>
-                        <option value="jp">🇯🇵 Japan</option>
-                        <option value="cn">🇨🇳 China</option>
-                        <option value="br">🇧🇷 Brazil</option>
-                        <option value="ru">🇷🇺 Russia</option>
-                        <option value="za">🇿🇦 South Africa</option>
-                        <option value="mx">🇲🇽 Mexico</option>
-                        <option value="it">🇮🇹 Italy</option>
-                        <option value="es">🇪🇸 Spain</option>
-                        <option value="nl">🇳🇱 Netherlands</option>
-                        <option value="se">🇸🇪 Sweden</option>
-                    </select>
+
+    <!-- TOP GLOBAL WIRE BAR -->
+    <aside class="top-wire-bar" aria-label="Global news wire status and breaking ticker">
+        <div class="wire-container">
+            <div class="wire-left">
+                <span class="live-pill">
+                    <span class="live-pulse"></span>
+                    LIVE WIRE
+                </span>
+                <span class="wire-clock" id="wire-clock">--:--:-- UTC</span>
+            </div>
+
+            <!-- Horizontal Marquee Ticker -->
+            <div class="wire-ticker-wrap">
+                <div class="wire-ticker" id="wire-ticker">
+                    <span class="ticker-item">Loading real-time global dispatches...</span>
+                </div>
+            </div>
+
+            <div class="wire-right">
+                <span class="wire-source-badge" id="wire-status-badge">Engine: Ready</span>
+                <!-- Theme Toggle Button -->
+                <button class="theme-toggle-btn" id="theme-toggle-btn" title="Toggle theme (Midnight / Broadsheet Paper)">
+                    <span class="theme-icon" id="theme-icon">☀️</span>
+                    <span class="theme-label" id="theme-label">Paper</span>
+                </button>
+            </div>
+        </div>
+    </aside>
+
+    <!-- MAIN APP WRAPPER -->
+    <div class="app-shell">
+
+        <!-- EDITORIAL MASTHEAD -->
+        <header class="masthead">
+            <div class="masthead-top">
+                <div class="masthead-meta">
+                    <span class="edition-tag">INTERNATIONAL EDITION</span>
+                    <span class="masthead-date" id="masthead-date">Tuesday, September 15</span>
+                    <span class="issue-number">VOL. XXIV • NO. 142</span>
+                </div>
+
+                <!-- Brand Title -->
+                <div class="brand-title-wrap">
+                    <a href="#" class="brand-link" id="brand-home-link">
+                        <div class="brand-crest">⚡</div>
+                        <h1 class="brand-title">NEWSMATE</h1>
+                        <span class="brand-subtitle">GLOBAL INTELLIGENCE CHRONICLE</span>
+                    </a>
+                </div>
+
+                <!-- Masthead Utility Actions -->
+                <div class="masthead-actions">
+                    <button class="action-btn briefing-btn" id="open-briefing-btn" title="Generate 60s Morning Intelligence Briefing">
+                        <span class="btn-icon">🌅</span>
+                        <span class="btn-text">60s Briefing</span>
+                    </button>
+                    
+                    <button class="action-btn bookmarks-trigger-btn" id="open-bookmarks-btn" title="Open Bookmarks Drawer">
+                        <span class="btn-icon">🔖</span>
+                        <span class="btn-text">Saved</span>
+                        <span class="badge-count" id="bookmarks-count">0</span>
+                    </button>
+
+                    <button class="action-btn ai-copilot-trigger-btn" id="open-copilot-btn" title="Open AI Intel Assistant">
+                        <span class="btn-icon">🤖</span>
+                        <span class="btn-text">Intel AI</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- SEARCH & GLOBAL DISPATCH CONTROLS -->
+            <div class="masthead-search-bar">
+                <div class="search-input-wrap">
+                    <span class="search-icon">🔍</span>
+                    <input type="text" id="news-search-input" class="search-input" placeholder="Search live headlines, entities, companies or topics... (Press '/' to focus)" maxlength="120" autocomplete="off">
+                    <button class="clear-search-btn" id="clear-search-btn" title="Clear search">✕</button>
+                    <kbd class="search-shortcut-badge">/</kbd>
+                </div>
+            </div>
+
+            <!-- COUNTRY GEOGRAPHY PILLS -->
+            <nav class="country-nav" aria-label="Select country feed">
+                <div class="country-pills-scroll" id="country-pills-container">
+                    <button class="country-pill active" data-country="world">🌐 Global Wire</button>
+                    <button class="country-pill" data-country="us">🇺🇸 United States</button>
+                    <button class="country-pill" data-country="in">🇮🇳 India</button>
+                    <button class="country-pill" data-country="gb">🇬🇧 United Kingdom</button>
+                    <button class="country-pill" data-country="ca">🇨🇦 Canada</button>
+                    <button class="country-pill" data-country="au">🇦🇺 Australia</button>
+                    <button class="country-pill" data-country="de">🇩🇪 Germany</button>
+                    <button class="country-pill" data-country="fr">🇫🇷 France</button>
+                    <button class="country-pill" data-country="jp">🇯🇵 Japan</button>
+                    <button class="country-pill" data-country="cn">🇨🇳 China</button>
+                    <button class="country-pill" data-country="br">🇧🇷 Brazil</button>
+                    <button class="country-pill" data-country="za">🇿🇦 South Africa</button>
+                    <button class="country-pill" data-country="mx">🇲🇽 Mexico</button>
+                    <button class="country-pill" data-country="it">🇮🇹 Italy</button>
+                    <button class="country-pill" data-country="es">🇪🇸 Spain</button>
+                    <button class="country-pill" data-country="nl">🇳🇱 Netherlands</button>
+                    <button class="country-pill" data-country="se">🇸🇪 Sweden</button>
+                </div>
+            </nav>
+
+            <!-- CATEGORY RIBBON -->
+            <nav class="category-ribbon" aria-label="News categories">
+                <div class="category-tabs" id="category-tabs">
+                    <button class="category-tab active" data-category="general">
+                        <span class="tab-dot"></span>All Dispatches
+                    </button>
+                    <button class="category-tab" data-category="technology">
+                        <span class="tab-icon">⚡</span>Technology & AI
+                    </button>
+                    <button class="category-tab" data-category="business">
+                        <span class="tab-icon">📈</span>Markets & Economy
+                    </button>
+                    <button class="category-tab" data-category="science">
+                        <span class="tab-icon">🔬</span>Science & Aerospace
+                    </button>
+                    <button class="category-tab" data-category="entertainment">
+                        <span class="tab-icon">🎭</span>Culture & Arts
+                    </button>
+                    <button class="category-tab" data-category="sports">
+                        <span class="tab-icon">🏆</span>Sports Wire
+                    </button>
+                    <button class="category-tab" data-category="health">
+                        <span class="tab-icon">🩺</span>Health & Bio
+                    </button>
+                </div>
+            </nav>
+
+            <!-- FEED STATUS & VIEW MODE TOOLBAR -->
+            <div class="feed-toolbar">
+                <div class="feed-breadcrumbs">
+                    <span class="feed-location-badge" id="feed-location-badge">🌐 Global Wire</span>
+                    <span class="feed-sep">•</span>
+                    <span class="feed-category-badge" id="feed-category-badge">All Dispatches</span>
+                    <span class="feed-count-pill" id="feed-count-pill">0 Stories</span>
+                </div>
+
+                <div class="toolbar-tools">
+                    <!-- View Mode Switcher -->
+                    <div class="view-switch-group" role="group" aria-label="View mode">
+                        <button class="view-btn active" data-view="grid" title="Magazine Grid View">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M3 3h8v8H3V3zm10 0h8v8h-8V3zM3 13h8v8H3v-8zm10 0h8v8h-8v-8z"/>
+                            </svg>
+                            <span class="view-label">Magazine</span>
+                        </button>
+                        <button class="view-btn" data-view="wire" title="High-density Wire Feed">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M3 4h18v2H3V4zm0 7h18v2H3v-2zm0 7h18v2H3v-2z"/>
+                            </svg>
+                            <span class="view-label">Wire</span>
+                        </button>
+                        <button class="view-btn" data-view="reader" title="Expanded Reader Cards">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/>
+                            </svg>
+                            <span class="view-label">Reader</span>
+                        </button>
+                    </div>
+
+                    <!-- Refresh Feed Button -->
+                    <button class="refresh-feed-btn" id="refresh-feed-btn" title="Refresh live wire dispatches">
+                        <span class="refresh-icon" id="refresh-icon">↻</span>
+                        <span>Refresh</span>
+                    </button>
                 </div>
             </div>
         </header>
 
-        <main id="news-grid" class="news-grid">
-            <!-- News articles will be loaded here -->
+        <!-- MAIN NEWS FEED WRAPPER -->
+        <main class="main-content">
+
+            <!-- HERO FEATURE SPOTLIGHT (Loaded dynamically for top headline) -->
+            <section class="hero-spotlight-section" id="hero-spotlight-section">
+                <!-- Injected via JavaScript -->
+            </section>
+
+            <!-- SECONDARY EDITORIAL NEWS GRID -->
+            <section class="editorial-grid-section">
+                <div class="news-grid-container view-grid" id="news-grid">
+                    <!-- News articles loaded here -->
+                </div>
+            </section>
+
         </main>
+
+        <!-- FOOTER -->
+        <footer class="site-footer">
+            <div class="footer-inner">
+                <div class="footer-brand">
+                    <h3>NEWSMATE GLOBAL CHRONICLE</h3>
+                    <p>Independent real-time intelligence aggregator powered by verified global wires and responsible AI synthesis.</p>
+                </div>
+                <div class="footer-stats">
+                    <span>17 Supported Nations</span>
+                    <span>•</span>
+                    <span>Zero-Key Resilient Feeds</span>
+                    <span>•</span>
+                    <span>Web Speech TTS Engine</span>
+                </div>
+                <div class="footer-copy">
+                    © 2026 NewsMate. Designed for truth, depth, and rapid clarity.
+                </div>
+            </div>
+        </footer>
+
     </div>
 
-    <!-- Floating Chatbot Button (similar to the image) -->
-    <div class="floating-chat-btn" id="floating-chat-btn">
-        <div class="chat-avatar">
-            <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
-                <path d="M12 2C13.1 2 14 2.9 14 4C14 5.1 13.1 6 12 6C10.9 6 10 5.1 10 4C10 2.9 10.9 2 12 2ZM21 9V7L15 1L9 7V9C9 10 8 11 7 11V13C8 13 9 14 9 15V16L15 23L21 16V15C21 14 22 13 23 13V11C22 11 21 10 21 9Z"/>
-            </svg>
+    <!-- FLOATING TEXT-TO-SPEECH AUDIO BAR -->
+    <div class="floating-audio-bar hidden" id="audio-player-bar">
+        <div class="audio-bar-inner">
+            <div class="audio-waves" id="audio-waves">
+                <span></span><span></span><span></span><span></span><span></span>
+            </div>
+            <div class="audio-info">
+                <span class="audio-label">NOW READING ALOUD</span>
+                <h4 class="audio-title" id="audio-player-title">Headline title...</h4>
+            </div>
+            <div class="audio-controls">
+                <button class="audio-speed-btn" id="audio-speed-btn" title="Adjust speech rate">1.0x</button>
+                <button class="audio-toggle-btn" id="audio-toggle-btn" title="Play / Pause">⏸</button>
+                <button class="audio-stop-btn" id="audio-stop-btn" title="Stop audio">⏹</button>
+            </div>
         </div>
-        <div class="chat-pulse"></div>
     </div>
 
-    <!-- Chatbot Modal (Enhanced) -->
-    <div id="chatbot-modal" class="chatbot-modal">
-        <div class="chatbot-container">
-            <div class="chatbot-header">
-                <div class="header-info">
-                    <div class="bot-avatar">
-                        <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
-                            <path d="M12 2C13.1 2 14 2.9 14 4C14 5.1 13.1 6 12 6C10.9 6 10 5.1 10 4C10 2.9 10.9 2 12 2ZM21 9V7L15 1L9 7V9C9 10 8 11 7 11V13C8 13 9 14 9 15V16L15 23L21 16V15C21 14 22 13 23 13V11C22 11 21 10 21 9Z"/>
-                        </svg>
+    <!-- DISTRACTION-FREE FOCUS READER MODAL -->
+    <div class="modal-overlay hidden" id="reader-modal-overlay">
+        <div class="reader-modal-card" role="dialog" aria-modal="true">
+            <div class="reader-modal-header">
+                <div class="reader-header-meta">
+                    <span class="reader-badge" id="reader-source-badge">Source</span>
+                    <span class="reader-date" id="reader-date-badge">Date</span>
+                    <span class="reader-readtime" id="reader-readtime-badge">3 min read</span>
+                </div>
+                <div class="reader-header-actions">
+                    <!-- Typography scale buttons -->
+                    <div class="type-scaler" title="Adjust text size">
+                        <button class="type-btn" id="font-decrease-btn">A-</button>
+                        <button class="type-btn" id="font-increase-btn">A+</button>
                     </div>
-                    <div class="bot-info">
-                        <h3>NewsBot Assistant</h3>
-                        <span class="status-indicator">Online</span>
+                    <button class="modal-close-btn" id="close-reader-modal" title="Close reader (Esc)">✕</button>
+                </div>
+            </div>
+
+            <div class="reader-modal-body" id="reader-content-body">
+                <h2 class="reader-title" id="reader-title">Article Title</h2>
+                <div class="reader-image-wrap" id="reader-image-wrap">
+                    <img src="" alt="" id="reader-image" class="reader-image">
+                </div>
+
+                <!-- AI Takeaway Capsule Inside Reader -->
+                <div class="reader-ai-takeaway-box" id="reader-ai-box">
+                    <div class="ai-box-header">
+                        <span class="ai-chip">⚡ AI EXECUTIVE SUMMARY</span>
+                        <span class="ai-sentiment-badge" id="reader-ai-sentiment">Developing</span>
+                    </div>
+                    <ul class="ai-takeaways-list" id="reader-ai-takeaways">
+                        <li>Analyzing article telemetry...</li>
+                    </ul>
+                </div>
+
+                <div class="reader-article-prose" id="reader-prose">
+                    <!-- Article text paragraphs -->
+                </div>
+
+                <div class="reader-modal-footer">
+                    <button class="reader-audio-btn" id="reader-listen-btn">
+                        <span>🔊 Listen to Story</span>
+                    </button>
+                    <button class="reader-bookmark-btn" id="reader-bookmark-btn">
+                        <span>🔖 Bookmark Story</span>
+                    </button>
+                    <a href="#" target="_blank" rel="noopener noreferrer" class="reader-external-link" id="reader-external-link">
+                        Read Full Original Wire ↗
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 60-SECOND EXECUTIVE BRIEFING MODAL -->
+    <div class="modal-overlay hidden" id="briefing-modal-overlay">
+        <div class="briefing-modal-card">
+            <div class="briefing-modal-header">
+                <div class="briefing-title-group">
+                    <span class="briefing-badge">🌅 DAILY INTELLIGENCE</span>
+                    <h2>60-Second Executive Briefing</h2>
+                </div>
+                <button class="modal-close-btn" id="close-briefing-modal" title="Close (Esc)">✕</button>
+            </div>
+            <div class="briefing-modal-body">
+                <div class="briefing-audio-banner">
+                    <button class="briefing-play-btn" id="briefing-play-audio-btn">
+                        <span class="play-icon">▶</span>
+                        <span>Listen to Briefing (Audio)</span>
+                    </button>
+                    <span class="briefing-timestamp" id="briefing-timestamp">Compiled Just Now</span>
+                </div>
+                <div class="briefing-text-content" id="briefing-text-content">
+                    <div class="briefing-skeleton">Generating executive intelligence summary from current wire feeds...</div>
+                </div>
+            </div>
+            <div class="briefing-modal-footer">
+                <button class="copy-btn" id="copy-briefing-btn">📋 Copy Briefing</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- BOOKMARKS SLIDE-OVER DRAWER -->
+    <aside class="drawer-overlay hidden" id="bookmarks-drawer-overlay">
+        <div class="bookmarks-drawer">
+            <div class="drawer-header">
+                <div class="drawer-title-wrap">
+                    <span class="drawer-icon">🔖</span>
+                    <h3>Saved Reading List</h3>
+                </div>
+                <button class="modal-close-btn" id="close-bookmarks-drawer" title="Close (Esc)">✕</button>
+            </div>
+            <div class="drawer-stats-bar">
+                <span id="saved-items-counter">0 stories saved locally</span>
+                <button class="clear-all-btn" id="clear-all-bookmarks-btn">Clear All</button>
+            </div>
+            <div class="drawer-list" id="bookmarks-list">
+                <div class="empty-drawer-state">
+                    <span class="empty-icon">📰</span>
+                    <p>No bookmarked stories yet.</p>
+                    <span class="empty-hint">Click the 🔖 icon on any card to save stories for offline reading.</span>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- INTEL AI COPILOT SLIDE-OVER DRAWER -->
+    <aside class="drawer-overlay hidden" id="copilot-drawer-overlay">
+        <div class="copilot-drawer">
+            <div class="drawer-header">
+                <div class="drawer-title-wrap">
+                    <span class="copilot-status-dot"></span>
+                    <div>
+                        <h3>NewsMate Intel Copilot</h3>
+                        <span class="copilot-sub">Journalistic Research & Fact Copilot</span>
                     </div>
                 </div>
-                <button id="close-chat" class="close-chat-btn">
-                    <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
-                        <path d="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z"/>
-                    </svg>
-                </button>
+                <button class="modal-close-btn" id="close-copilot-drawer" title="Close (Esc)">✕</button>
             </div>
-            
-            <div class="chatbot-messages" id="chat-messages">
-                <div class="bot-message">
-                    <div class="message-bubble">
-                        <div class="message-content">
-                            Hello! I'm your NewsMate assistant. I can help you with information about this app and answer news-related questions. How can I help you today?
+
+            <!-- Suggestion Quick Chips -->
+            <div class="copilot-suggestions-bar">
+                <span class="suggestions-label">Inquire:</span>
+                <div class="copilot-chips" id="copilot-chips">
+                    <button class="chip-btn" data-query="What are the major themes across today's headlines?">Top News Themes</button>
+                    <button class="chip-btn" data-query="How do I verify if a breaking story is credible?">Fact-Check Guidelines</button>
+                    <button class="chip-btn" data-query="Explain how NewsMate's Zero-Key fallback engine works.">Platform Engine</button>
+                    <button class="chip-btn" data-query="What are the key market developments today?">Market Intelligence</button>
+                </div>
+            </div>
+
+            <!-- Chat Message Feed -->
+            <div class="copilot-messages" id="copilot-messages">
+                <div class="copilot-msg bot">
+                    <div class="msg-avatar">⚡</div>
+                    <div class="msg-bubble">
+                        <div class="msg-text">
+                            Greetings. I am the <strong>NewsMate Editorial Intelligence Copilot</strong>. I monitor global wire dispatches, explain macroeconomic and geopolitical developments, and assist you in parsing media context.
                         </div>
-                        <div class="message-time">Just now</div>
+                        <span class="msg-time">Just now</span>
                     </div>
                 </div>
             </div>
-            
-            <div class="chatbot-suggestions" id="chat-suggestions">
-                <!-- Suggestions will be loaded here -->
-            </div>
-            
-            <div class="chatbot-input">
-                <div class="input-container">
-                    <input type="text" id="chat-input" placeholder="Type your message..." maxlength="500">
-                    <button id="send-chat" class="send-btn" disabled>
-                        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+
+            <!-- Input Bar -->
+            <div class="copilot-input-zone">
+                <div class="copilot-input-box">
+                    <textarea id="copilot-input" placeholder="Ask about current events, topics, or platform tools..." rows="1" maxlength="600"></textarea>
+                    <button id="send-copilot-btn" class="send-copilot-btn" disabled title="Send query">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
                             <path d="M2,21L23,12L2,3V10L17,12L2,14V21Z"/>
                         </svg>
                     </button>
                 </div>
             </div>
         </div>
-    </div>
+    </aside>
+
+    <!-- TOAST NOTIFICATION CONTAINER -->
+    <div class="toast-container" id="toast-container"></div>
 
     <script src="script.js"></script>
 </body>
 </html>
-

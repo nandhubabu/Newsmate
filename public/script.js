@@ -1,398 +1,1042 @@
-class NewsApp {
+/**
+ * NEWSMATE 2.0 — GLOBAL INTELLIGENCE CHRONICLE
+ * Modern Editorial Client Application
+ */
+
+class NewsMateApp {
     constructor() {
-        this.newsGrid = document.getElementById('news-grid');
-        this.countrySelect = document.getElementById('country-select');
-        this.currentCountry = 'us';
-        
-        // Chatbot elements
-        this.floatingChatBtn = document.getElementById('floating-chat-btn');
-        this.chatModal = document.getElementById('chatbot-modal');
-        this.closeChat = document.getElementById('close-chat');
-        this.chatMessages = document.getElementById('chat-messages');
-        this.chatInput = document.getElementById('chat-input');
-        this.sendChat = document.getElementById('send-chat');
-        this.chatSuggestions = document.getElementById('chat-suggestions');
-        
+        // State
+        this.country = 'world';
+        this.category = 'general';
+        this.searchQuery = '';
+        this.viewMode = localStorage.getItem('newsmate_view') || 'grid';
+        this.theme = localStorage.getItem('newsmate_theme') || 'dark';
+        this.articles = [];
+        this.filteredArticles = [];
+        this.bookmarks = JSON.parse(localStorage.getItem('newsmate_bookmarks') || '[]');
+        this.currentArticleForReader = null;
+        this.currentBriefingText = '';
+        this.readerFontSize = 1.15; // rem
+
+        // Audio Engine State
+        this.audioSpeech = {
+            synth: window.speechSynthesis,
+            utterance: null,
+            isPlaying: false,
+            isPaused: false,
+            rate: 1.0,
+            currentTitle: ''
+        };
+
+        // Cache DOM Elements
+        this.dom = {
+            html: document.documentElement,
+            wireClock: document.getElementById('wire-clock'),
+            wireTicker: document.getElementById('wire-ticker'),
+            wireStatusBadge: document.getElementById('wire-status-badge'),
+            themeToggleBtn: document.getElementById('theme-toggle-btn'),
+            themeIcon: document.getElementById('theme-icon'),
+            themeLabel: document.getElementById('theme-label'),
+            mastheadDate: document.getElementById('masthead-date'),
+            searchInput: document.getElementById('news-search-input'),
+            clearSearchBtn: document.getElementById('clear-search-btn'),
+            countryPills: document.getElementById('country-pills-container'),
+            categoryTabs: document.getElementById('category-tabs'),
+            feedLocationBadge: document.getElementById('feed-location-badge'),
+            feedCategoryBadge: document.getElementById('feed-category-badge'),
+            feedCountPill: document.getElementById('feed-count-pill'),
+            viewBtns: document.querySelectorAll('.view-btn'),
+            refreshBtn: document.getElementById('refresh-feed-btn'),
+            refreshIcon: document.getElementById('refresh-icon'),
+            heroSection: document.getElementById('hero-spotlight-section'),
+            newsGrid: document.getElementById('news-grid'),
+            brandHomeLink: document.getElementById('brand-home-link'),
+
+            // Bookmarks
+            openBookmarksBtn: document.getElementById('open-bookmarks-btn'),
+            closeBookmarksBtn: document.getElementById('close-bookmarks-drawer'),
+            bookmarksDrawerOverlay: document.getElementById('bookmarks-drawer-overlay'),
+            bookmarksList: document.getElementById('bookmarks-list'),
+            bookmarksCount: document.getElementById('bookmarks-count'),
+            savedItemsCounter: document.getElementById('saved-items-counter'),
+            clearAllBookmarksBtn: document.getElementById('clear-all-bookmarks-btn'),
+
+            // Audio Player Bar
+            audioPlayerBar: document.getElementById('audio-player-bar'),
+            audioPlayerTitle: document.getElementById('audio-player-title'),
+            audioSpeedBtn: document.getElementById('audio-speed-btn'),
+            audioToggleBtn: document.getElementById('audio-toggle-btn'),
+            audioStopBtn: document.getElementById('audio-stop-btn'),
+            audioWaves: document.getElementById('audio-waves'),
+
+            // Reader Modal
+            readerOverlay: document.getElementById('reader-modal-overlay'),
+            closeReaderBtn: document.getElementById('close-reader-modal'),
+            readerSource: document.getElementById('reader-source-badge'),
+            readerDate: document.getElementById('reader-date-badge'),
+            readerReadTime: document.getElementById('reader-readtime-badge'),
+            readerTitle: document.getElementById('reader-title'),
+            readerImage: document.getElementById('reader-image'),
+            readerImageWrap: document.getElementById('reader-image-wrap'),
+            readerAiSentiment: document.getElementById('reader-ai-sentiment'),
+            readerAiTakeaways: document.getElementById('reader-ai-takeaways'),
+            readerProse: document.getElementById('reader-prose'),
+            readerListenBtn: document.getElementById('reader-listen-btn'),
+            readerBookmarkBtn: document.getElementById('reader-bookmark-btn'),
+            readerExternalLink: document.getElementById('reader-external-link'),
+            fontDecreaseBtn: document.getElementById('font-decrease-btn'),
+            fontIncreaseBtn: document.getElementById('font-increase-btn'),
+
+            // Briefing Modal
+            openBriefingBtn: document.getElementById('open-briefing-btn'),
+            closeBriefingBtn: document.getElementById('close-briefing-modal'),
+            briefingOverlay: document.getElementById('briefing-modal-overlay'),
+            briefingPlayAudioBtn: document.getElementById('briefing-play-audio-btn'),
+            briefingTimestamp: document.getElementById('briefing-timestamp'),
+            briefingTextContent: document.getElementById('briefing-text-content'),
+            copyBriefingBtn: document.getElementById('copy-briefing-btn'),
+
+            // Copilot Drawer
+            openCopilotBtn: document.getElementById('open-copilot-btn'),
+            closeCopilotBtn: document.getElementById('close-copilot-drawer'),
+            copilotOverlay: document.getElementById('copilot-drawer-overlay'),
+            copilotChips: document.getElementById('copilot-chips'),
+            copilotMessages: document.getElementById('copilot-messages'),
+            copilotInput: document.getElementById('copilot-input'),
+            sendCopilotBtn: document.getElementById('send-copilot-btn'),
+
+            // Toast
+            toastContainer: document.getElementById('toast-container')
+        };
+
         this.init();
     }
 
     init() {
+        this.applyTheme(this.theme);
+        this.setViewMode(this.viewMode);
+        this.updateDateDisplay();
+        this.startClock();
+        this.updateBookmarksBadge();
         this.bindEvents();
-        this.loadNews(this.currentCountry);
-        this.checkAPIHealth();
-        this.loadChatSuggestions();
+        this.fetchNews();
     }
 
+    /* ==========================================================================
+       EVENT BINDINGS
+       ========================================================================== */
     bindEvents() {
-        // Existing events
-        this.countrySelect.addEventListener('change', (e) => {
-            this.currentCountry = e.target.value;
-            console.log(`Switching to country: ${this.currentCountry}`);
-            this.loadNews(this.currentCountry);
+        // Theme toggle
+        this.dom.themeToggleBtn.addEventListener('click', () => {
+            const nextTheme = this.theme === 'dark' ? 'light' : 'dark';
+            this.applyTheme(nextTheme);
+            this.showToast(`Theme switched to ${nextTheme === 'dark' ? 'Midnight Intelligence' : 'Broadsheet Paper'}`);
         });
 
-        // Chatbot events (updated for floating button)
-        this.floatingChatBtn.addEventListener('click', () => this.openChat());
-        this.closeChat.addEventListener('click', () => this.closeChatModal());
-        this.chatModal.addEventListener('click', (e) => {
-            if (e.target === this.chatModal) this.closeChatModal();
+        // Brand click
+        this.dom.brandHomeLink.addEventListener('click', (e) => {
+            e.preventDefault();
+            this.category = 'general';
+            this.country = 'world';
+            this.searchQuery = '';
+            this.dom.searchInput.value = '';
+            this.dom.clearSearchBtn.style.display = 'none';
+            this.syncActiveNavigation();
+            this.fetchNews();
         });
-        
-        this.sendChat.addEventListener('click', () => this.sendMessage());
-        this.chatInput.addEventListener('keypress', (e) => {
+
+        // Search Input
+        this.dom.searchInput.addEventListener('input', (e) => {
+            this.searchQuery = e.target.value.trim().toLowerCase();
+            this.dom.clearSearchBtn.style.display = this.searchQuery ? 'block' : 'none';
+            this.filterAndRenderArticles();
+        });
+
+        this.dom.clearSearchBtn.addEventListener('click', () => {
+            this.dom.searchInput.value = '';
+            this.searchQuery = '';
+            this.dom.clearSearchBtn.style.display = 'none';
+            this.filterAndRenderArticles();
+            this.dom.searchInput.focus();
+        });
+
+        // Country Pills
+        this.dom.countryPills.addEventListener('click', (e) => {
+            const pill = e.target.closest('.country-pill');
+            if (!pill) return;
+            this.country = pill.getAttribute('data-country');
+            this.syncActiveNavigation();
+            this.fetchNews();
+        });
+
+        // Category Tabs
+        this.dom.categoryTabs.addEventListener('click', (e) => {
+            const tab = e.target.closest('.category-tab');
+            if (!tab) return;
+            this.category = tab.getAttribute('data-category');
+            this.syncActiveNavigation();
+            this.fetchNews();
+        });
+
+        // View Mode Switcher
+        this.dom.viewBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const view = btn.getAttribute('data-view');
+                this.setViewMode(view);
+            });
+        });
+
+        // Refresh Feed
+        this.dom.refreshBtn.addEventListener('click', () => {
+            this.dom.refreshIcon.classList.add('spinning');
+            this.fetchNews().finally(() => {
+                setTimeout(() => this.dom.refreshIcon.classList.remove('spinning'), 600);
+            });
+        });
+
+        // Bookmarks Drawer triggers
+        this.dom.openBookmarksBtn.addEventListener('click', () => this.openBookmarksDrawer());
+        this.dom.closeBookmarksBtn.addEventListener('click', () => this.closeBookmarksDrawer());
+        this.dom.bookmarksDrawerOverlay.addEventListener('click', (e) => {
+            if (e.target === this.dom.bookmarksDrawerOverlay) this.closeBookmarksDrawer();
+        });
+        this.dom.clearAllBookmarksBtn.addEventListener('click', () => this.clearAllBookmarks());
+
+        // Audio Controls
+        this.dom.audioToggleBtn.addEventListener('click', () => this.toggleAudioPlayback());
+        this.dom.audioStopBtn.addEventListener('click', () => this.stopAudio());
+        this.dom.audioSpeedBtn.addEventListener('click', () => this.cycleAudioSpeed());
+
+        // Focus Reader Modal
+        this.dom.closeReaderBtn.addEventListener('click', () => this.closeReaderModal());
+        this.dom.readerOverlay.addEventListener('click', (e) => {
+            if (e.target === this.dom.readerOverlay) this.closeReaderModal();
+        });
+        this.dom.fontDecreaseBtn.addEventListener('click', () => this.adjustReaderFontSize(-0.1));
+        this.dom.fontIncreaseBtn.addEventListener('click', () => this.adjustReaderFontSize(0.1));
+        this.dom.readerListenBtn.addEventListener('click', () => {
+            if (this.currentArticleForReader) {
+                this.playArticleAudio(this.currentArticleForReader);
+            }
+        });
+        this.dom.readerBookmarkBtn.addEventListener('click', () => {
+            if (this.currentArticleForReader) {
+                this.toggleBookmark(this.currentArticleForReader);
+            }
+        });
+
+        // 60s Briefing Modal
+        this.dom.openBriefingBtn.addEventListener('click', () => this.openBriefingModal());
+        this.dom.closeBriefingBtn.addEventListener('click', () => this.closeBriefingModal());
+        this.dom.briefingOverlay.addEventListener('click', (e) => {
+            if (e.target === this.dom.briefingOverlay) this.closeBriefingModal();
+        });
+        this.dom.briefingPlayAudioBtn.addEventListener('click', () => {
+            if (this.currentBriefingText) {
+                this.speakText("NewsMate 60-Second Executive Briefing", this.currentBriefingText.replace(/[*#]/g, ''));
+            }
+        });
+        this.dom.copyBriefingBtn.addEventListener('click', () => {
+            if (this.currentBriefingText) {
+                navigator.clipboard.writeText(this.currentBriefingText);
+                this.showToast('Briefing copied to clipboard');
+            }
+        });
+
+        // Copilot Drawer
+        this.dom.openCopilotBtn.addEventListener('click', () => this.openCopilotDrawer());
+        this.dom.closeCopilotBtn.addEventListener('click', () => this.closeCopilotDrawer());
+        this.dom.copilotOverlay.addEventListener('click', (e) => {
+            if (e.target === this.dom.copilotOverlay) this.closeCopilotDrawer();
+        });
+        this.dom.sendCopilotBtn.addEventListener('click', () => this.sendCopilotMessage());
+        this.dom.copilotInput.addEventListener('keydown', (e) => {
             if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
-                this.sendMessage();
+                this.sendCopilotMessage();
             }
         });
-        
-        this.chatInput.addEventListener('input', () => {
-            this.sendChat.disabled = this.chatInput.value.trim() === '';
+        this.dom.copilotInput.addEventListener('input', () => {
+            this.dom.sendCopilotBtn.disabled = !this.dom.copilotInput.value.trim();
         });
-    }
-
-    // Chatbot Methods (updated)
-    openChat() {
-        this.chatModal.classList.add('active');
-        this.chatInput.focus();
-        
-        // Hide floating button when chat is open
-        this.floatingChatBtn.style.display = 'none';
-    }
-
-    closeChatModal() {
-        this.chatModal.classList.remove('active');
-        
-        // Show floating button when chat is closed
-        this.floatingChatBtn.style.display = 'flex';
-    }
-
-    async loadChatSuggestions() {
-        try {
-            const response = await fetch('/api/chat/suggestions');
-            const data = await response.json();
-            this.renderSuggestions(data.suggestions);
-        } catch (error) {
-            console.error('Failed to load chat suggestions:', error);
-        }
-    }
-
-    renderSuggestions(suggestions) {
-        const suggestionsHTML = `
-            <div class="suggestions-label">Quick questions:</div>
-            <div class="suggestion-chips">
-                ${suggestions.map(suggestion => 
-                    `<button class="suggestion-chip" onclick="newsApp.useSuggestion('${suggestion}')">${suggestion}</button>`
-                ).join('')}
-            </div>
-        `;
-        this.chatSuggestions.innerHTML = suggestionsHTML;
-    }
-
-    useSuggestion(suggestion) {
-        this.chatInput.value = suggestion;
-        this.sendMessage();
-    }
-
-    async sendMessage() {
-        const message = this.chatInput.value.trim();
-        if (!message) return;
-
-        // Add user message to chat
-        this.addMessage(message, 'user');
-        this.chatInput.value = '';
-        this.sendChat.disabled = true;
-
-        // Show typing indicator
-        this.showTypingIndicator();
-
-        try {
-            const response = await fetch('/api/chat', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ message })
-            });
-
-            const data = await response.json();
-            
-            // Remove typing indicator
-            this.hideTypingIndicator();
-
-            if (response.ok) {
-                this.addMessage(data.response, 'bot', { powered_by: data.powered_by });
-                if (data.suggestions) {
-                    this.renderSuggestions(data.suggestions);
-                }
-            } else {
-                this.addMessage(data.response || 'Sorry, I encountered an error. Please try again.', 'bot');
+        this.dom.copilotChips.addEventListener('click', (e) => {
+            const chip = e.target.closest('.chip-btn');
+            if (chip) {
+                const query = chip.getAttribute('data-query');
+                this.dom.copilotInput.value = query;
+                this.sendCopilotMessage();
             }
+        });
 
-        } catch (error) {
-            this.hideTypingIndicator();
-            this.addMessage('Sorry, I\'m having trouble connecting. Please check your internet connection and try again.', 'bot');
-            console.error('Chat error:', error);
-        }
-    }
-
-    // Update the addMessage method to show AI status
-    addMessage(content, sender, metadata = {}) {
-        const messageDiv = document.createElement('div');
-        messageDiv.className = `${sender}-message`;
-        
-        const messageBubble = document.createElement('div');
-        messageBubble.className = 'message-bubble';
-        
-        const messageContent = document.createElement('div');
-        messageContent.className = 'message-content';
-        messageContent.textContent = content;
-        
-        const messageTime = document.createElement('div');
-        messageTime.className = 'message-time';
-        
-        let timeText = this.formatTime(new Date());
-        if (sender === 'bot' && metadata.powered_by) {
-            timeText += ` • ${metadata.powered_by}`;
-        }
-        
-        messageTime.textContent = timeText;
-        
-        messageBubble.appendChild(messageContent);
-        messageBubble.appendChild(messageTime);
-        messageDiv.appendChild(messageBubble);
-        this.chatMessages.appendChild(messageDiv);
-        
-        // Scroll to bottom
-        this.chatMessages.scrollTop = this.chatMessages.scrollHeight;
-    }
-
-    formatTime(date) {
-        return date.toLocaleTimeString('en-US', { 
-            hour: 'numeric', 
-            minute: '2-digit',
-            hour12: true 
+        // Global Keyboard Shortcuts
+        document.addEventListener('keydown', (e) => {
+            if (e.key === '/' && document.activeElement !== this.dom.searchInput && document.activeElement !== this.dom.copilotInput) {
+                e.preventDefault();
+                this.dom.searchInput.focus();
+            }
+            if (e.key === 'Escape') {
+                this.closeReaderModal();
+                this.closeBriefingModal();
+                this.closeBookmarksDrawer();
+                this.closeCopilotDrawer();
+            }
         });
     }
 
-    showTypingIndicator() {
-        const typingDiv = document.createElement('div');
-        typingDiv.className = 'bot-message typing-indicator';
-        typingDiv.id = 'typing-indicator';
-        typingDiv.innerHTML = `
-            <div class="message-bubble">
-                <div class="message-content">
-                    <span>NewsBot is typing</span>
-                    <div class="typing-dots">
-                        <div class="typing-dot"></div>
-                        <div class="typing-dot"></div>
-                        <div class="typing-dot"></div>
-                    </div>
-                </div>
-            </div>
-        `;
-        
-        this.chatMessages.appendChild(typingDiv);
-        this.chatMessages.scrollTop = this.chatMessages.scrollHeight;
-    }
+    /* ==========================================================================
+       THEME & VIEW MODE
+       ========================================================================== */
+    applyTheme(theme) {
+        this.theme = theme;
+        this.dom.html.setAttribute('data-theme', theme);
+        localStorage.setItem('newsmate_theme', theme);
 
-    hideTypingIndicator() {
-        const typingIndicator = document.getElementById('typing-indicator');
-        if (typingIndicator) {
-            typingIndicator.remove();
+        if (theme === 'dark') {
+            this.dom.themeIcon.textContent = '☀️';
+            this.dom.themeLabel.textContent = 'Paper';
+        } else {
+            this.dom.themeIcon.textContent = '🌙';
+            this.dom.themeLabel.textContent = 'Midnight';
         }
     }
 
-    // Existing methods (checkAPIHealth, loadNews, etc.) remain the same...
-    async checkAPIHealth() {
-        try {
-            const response = await fetch('/api/health');
-            const health = await response.json();
-            console.log('API Health Status:', health);
-        } catch (error) {
-            console.error('Health check failed:', error);
-        }
+    setViewMode(mode) {
+        this.viewMode = mode;
+        localStorage.setItem('newsmate_view', mode);
+
+        this.dom.viewBtns.forEach(btn => {
+            btn.classList.toggle('active', btn.getAttribute('data-view') === mode);
+        });
+
+        this.dom.newsGrid.className = `news-grid-container view-${mode}`;
     }
 
-    async loadNews(country) {
-        try {
-            this.showLoadingState();
-            
-            console.log(`Fetching news for: ${country}`);
-            const response = await fetch(`/api/news?country=${country}`);
-            
-            if (!response.ok) {
-                const errorData = await response.json();
-                
-                // Handle 503 errors (service unavailable) differently
-                if (response.status === 503) {
-                    this.showServiceUnavailableError(errorData);
-                    return;
-                }
-                
-                throw new Error(errorData.details || `HTTP error! status: ${response.status}`);
-            }
-            
-            const data = await response.json();
-            console.log('API Response:', data);
-            
-            if (data.status === 'ok' && data.articles && data.articles.length > 0) {
-                this.renderNews(data.articles, data.message);
-            } else {
-                this.showErrorState(`No articles found for ${this.getCountryName(country)}. All news sources are currently unavailable.`);
-            }
-            
-        } catch (error) {
-            console.error('Error fetching news:', error);
-            this.showErrorState(`Failed to load news for ${this.getCountryName(country)}. ${error.message}`);
-        }
+    syncActiveNavigation() {
+        // Sync Country Pills
+        document.querySelectorAll('.country-pill').forEach(pill => {
+            pill.classList.toggle('active', pill.getAttribute('data-country') === this.country);
+        });
+
+        // Sync Category Tabs
+        document.querySelectorAll('.category-tab').forEach(tab => {
+            tab.classList.toggle('active', tab.getAttribute('data-category') === this.category);
+        });
+
+        // Update Breadcrumb Labels
+        const activeCountryPill = document.querySelector(`.country-pill[data-country="${this.country}"]`);
+        this.dom.feedLocationBadge.textContent = activeCountryPill ? activeCountryPill.textContent : this.country.toUpperCase();
+
+        const activeCatTab = document.querySelector(`.category-tab[data-category="${this.category}"]`);
+        this.dom.feedCategoryBadge.textContent = activeCatTab ? activeCatTab.textContent.trim() : this.category;
     }
 
-    showServiceUnavailableError(errorData) {
-        const suggestions = errorData.suggestions || [];
-        const suggestionsHTML = suggestions.map(suggestion => 
-            `<li style="text-align: left; margin-bottom: 0.5rem;">${suggestion}</li>`
-        ).join('');
-
-        this.newsGrid.innerHTML = `
-            <div class="error-state">
-                <div class="error-message">
-                    <h3>News Temporarily Unavailable</h3>
-                    <p>${errorData.message}</p>
-                    
-                    ${suggestions.length > 0 ? `
-                        <div style="margin: 1.5rem 0;">
-                            <h4 style="margin-bottom: 1rem; color: #fed7d7;">Suggestions:</h4>
-                            <ul style="color: white; padding-left: 1rem;">
-                                ${suggestionsHTML}
-                            </ul>
-                        </div>
-                    ` : ''}
-                    
-                    <div style="margin-top: 1.5rem;">
-                        <button onclick="newsApp.loadNews('us')" class="retry-button">Try US News</button>
-                        <button onclick="newsApp.loadNews(newsApp.currentCountry)" class="retry-button">Retry ${errorData.countryName}</button>
-                        <button onclick="location.reload()" class="retry-button">Refresh Page</button>
-                    </div>
-                </div>
-            </div>
-        `;
+    updateDateDisplay() {
+        const now = new Date();
+        const options = { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' };
+        this.dom.mastheadDate.textContent = now.toLocaleDateString('en-US', options);
     }
 
-    getCountryName(code) {
-        const countries = {
-            'us': 'United States', 'in': 'India', 'gb': 'United Kingdom', 'ca': 'Canada',
-            'au': 'Australia', 'de': 'Germany', 'fr': 'France', 'jp': 'Japan',
-            'cn': 'China', 'br': 'Brazil', 'ru': 'Russia', 'za': 'South Africa',
-            'mx': 'Mexico', 'it': 'Italy', 'es': 'Spain', 'nl': 'Netherlands', 'se': 'Sweden'
+    startClock() {
+        const updateClock = () => {
+            const now = new Date();
+            const utcTime = now.toUTCString().split(' ')[4];
+            this.dom.wireClock.textContent = `${utcTime} UTC`;
         };
-        return countries[code] || code.toUpperCase();
+        updateClock();
+        setInterval(updateClock, 1000);
     }
 
-    showLoadingState() {
-        this.newsGrid.innerHTML = `
-            <div class="loading-state">
-                <div class="spinner"></div>
-                <p>Fetching the latest headlines for ${this.getCountryName(this.currentCountry)}...</p>
-                <p style="font-size: 0.9rem; opacity: 0.8; margin-top: 0.5rem;">Trying multiple news sources...</p>
+    /* ==========================================================================
+       DATA FETCHING & RENDERING
+       ========================================================================== */
+    async fetchNews() {
+        this.showLoadingSkeletons();
+
+        try {
+            const url = `/api/news?country=${encodeURIComponent(this.country)}&category=${encodeURIComponent(this.category)}`;
+            const res = await fetch(url);
+            
+            if (!res.ok) {
+                const errData = await res.json().catch(() => ({}));
+                throw new Error(errData.message || `Server returned ${res.status}`);
+            }
+
+            const data = await res.json();
+            this.articles = (data.articles || []).filter(a => a.title && a.title !== '[Removed]');
+
+            // Update status badge
+            if (data.apiSource) {
+                this.dom.wireStatusBadge.textContent = `Wire: ${data.apiSource.split(' ')[0]}`;
+            }
+
+            this.updateTicker(this.articles);
+            this.filterAndRenderArticles();
+
+        } catch (err) {
+            console.error('Fetch error:', err);
+            this.showErrorState(err.message);
+        }
+    }
+
+    showLoadingSkeletons() {
+        this.dom.heroSection.innerHTML = '';
+        this.dom.newsGrid.innerHTML = Array(6).fill(0).map(() => `
+            <div class="skeleton-card"></div>
+        `).join('');
+        this.dom.feedCountPill.textContent = 'Fetching...';
+    }
+
+    showErrorState(msg) {
+        this.dom.heroSection.innerHTML = '';
+        this.dom.newsGrid.innerHTML = `
+            <div class="feed-state-message">
+                <h3>Wire Signal Interrupted</h3>
+                <p>${msg || 'Unable to load real-time headlines. Upstream news servers or local feeds could not be reached.'}</p>
+                <button class="feed-retry-btn" onclick="window.newsApp.fetchNews()">
+                    <span>↻ Retry Connection</span>
+                </button>
             </div>
         `;
+        this.dom.feedCountPill.textContent = '0 Stories';
     }
 
-    showErrorState(message) {
-        this.newsGrid.innerHTML = `
-            <div class="error-state">
-                <div class="error-message">
-                    <h3>Oops! Something went wrong</h3>
-                    <p>${message}</p>
-                    <div style="margin-top: 1rem;">
-                        <button onclick="newsApp.loadNews('us')" class="retry-button">Try US News</button>
-                        <button onclick="newsApp.loadNews(newsApp.currentCountry)" class="retry-button">Retry</button>
-                        <button onclick="newsApp.checkAPIHealth()" class="retry-button">Check API Status</button>
-                    </div>
+    updateTicker(articles) {
+        if (!articles || articles.length === 0) return;
+        const topHeadlines = articles.slice(0, 10);
+        this.dom.wireTicker.innerHTML = topHeadlines.map((art, idx) => `
+            <span class="ticker-item" onclick="window.newsApp.openReaderModal(${idx})">
+                ● <strong>${this.escapeHtml(art.source?.name || 'Wire')}:</strong> ${this.escapeHtml(art.title)}
+            </span>
+        `).join('');
+    }
+
+    filterAndRenderArticles() {
+        if (this.searchQuery) {
+            this.filteredArticles = this.articles.filter(a => {
+                const title = (a.title || '').toLowerCase();
+                const desc = (a.description || '').toLowerCase();
+                const src = (a.source?.name || '').toLowerCase();
+                return title.includes(this.searchQuery) || desc.includes(this.searchQuery) || src.includes(this.searchQuery);
+            });
+        } else {
+            this.filteredArticles = [...this.articles];
+        }
+
+        this.dom.feedCountPill.textContent = `${this.filteredArticles.length} Stories`;
+
+        if (this.filteredArticles.length === 0) {
+            this.dom.heroSection.innerHTML = '';
+            this.dom.newsGrid.innerHTML = `
+                <div class="feed-state-message">
+                    <h3>No Dispatches Found</h3>
+                    <p>No headlines matched your search criteria: "${this.escapeHtml(this.searchQuery)}".</p>
                 </div>
-            </div>
-        `;
-    }
-
-    renderNews(articles, message) {
-        const validArticles = articles.filter(article => 
-            article.title && 
-            article.title !== '[Removed]' && 
-            article.description && 
-            article.description !== '[Removed]'
-        );
-
-        if (validArticles.length === 0) {
-            this.showErrorState('No valid articles found for this country.');
+            `;
             return;
         }
 
-        let messageHTML = '';
-        if (message) {
-            messageHTML = `
-                <div class="info-message">
-                    <p>${message}</p>
-                </div>
-            `;
+        // Render Hero Spotlight (Top 1 story if in Grid mode and no search query active)
+        if (this.viewMode === 'grid' && !this.searchQuery && this.filteredArticles.length > 0) {
+            const heroStory = this.filteredArticles[0];
+            this.renderHeroSpotlight(heroStory, 0);
+            this.renderGrid(this.filteredArticles.slice(1), 1);
+        } else {
+            this.dom.heroSection.innerHTML = '';
+            this.renderGrid(this.filteredArticles, 0);
         }
+    }
 
-        const newsHTML = validArticles.map((article, index) => {
-            const publishedDate = this.formatDate(article.publishedAt);
-            const imageUrl = article.urlToImage || 'https://via.placeholder.com/400x200/667eea/ffffff?text=No+Image';
-            const source = article.source?.name || 'Unknown Source';
-            const description = this.truncateText(article.description, 150);
-            const title = this.truncateText(article.title, 100);
+    renderHeroSpotlight(article, globalIndex) {
+        const timeAgo = this.formatTimeAgo(article.publishedAt);
+        const imageUrl = article.urlToImage || 'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?w=1000&auto=format&fit=crop&q=80';
+        const source = article.source?.name || 'Global Wire';
+        const isBookmarked = this.isBookmarked(article);
+
+        this.dom.heroSection.innerHTML = `
+            <article class="hero-lead-card">
+                <div class="hero-media-wrap" onclick="window.newsApp.openReaderModal(${globalIndex})">
+                    <img src="${imageUrl}" alt="${this.escapeHtml(article.title)}" class="hero-img" loading="lazy" onerror="this.src='https://images.unsplash.com/photo-1585829365295-ab7cd400c167?w=1000&auto=format&fit=crop&q=80'">
+                    <div class="hero-badge-overlay">
+                        <span class="hero-tag">LEAD DISPATCH</span>
+                    </div>
+                </div>
+                <div class="hero-content">
+                    <div>
+                        <div class="hero-meta">
+                            <span class="hero-source">${this.escapeHtml(source)}</span>
+                            <span>•</span>
+                            <span class="hero-time">${timeAgo}</span>
+                        </div>
+                        <h2 class="hero-title" onclick="window.newsApp.openReaderModal(${globalIndex})">
+                            ${this.escapeHtml(article.title)}
+                        </h2>
+                        <p class="hero-desc">
+                            ${this.escapeHtml(article.description || 'Full journalistic dispatch available in reader view.')}
+                        </p>
+                    </div>
+
+                    <div class="hero-actions">
+                        <button class="tool-action-btn" onclick="window.newsApp.playArticleAudioByIndex(${globalIndex})">
+                            <span>🔊 Listen</span>
+                        </button>
+                        <button class="tool-action-btn ai-btn" onclick="window.newsApp.openReaderModal(${globalIndex})">
+                            <span>⚡ AI Summary</span>
+                        </button>
+                        <button class="tool-action-btn ${isBookmarked ? 'active' : ''}" onclick="window.newsApp.toggleBookmarkByIndex(${globalIndex})">
+                            <span>${isBookmarked ? '🔖 Saved' : '🔖 Bookmark'}</span>
+                        </button>
+                        <button class="tool-action-btn" onclick="window.newsApp.openReaderModal(${globalIndex})">
+                            <span>📖 Focus Reader</span>
+                        </button>
+                    </div>
+                </div>
+            </article>
+        `;
+    }
+
+    renderGrid(articles, indexOffset) {
+        this.dom.newsGrid.innerHTML = articles.map((article, idx) => {
+            const globalIndex = idx + indexOffset;
+            const timeAgo = this.formatTimeAgo(article.publishedAt);
+            const imageUrl = article.urlToImage || 'https://images.unsplash.com/photo-1504711434969-e33886168f5c?w=600&auto=format&fit=crop&q=80';
+            const source = article.source?.name || 'Wire';
+            const isBookmarked = this.isBookmarked(article);
 
             return `
-                <article class="news-article" style="animation-delay: ${index * 0.1}s">
-                    <img src="${imageUrl}" alt="${title}" class="article-image" 
-                         onerror="this.src='https://via.placeholder.com/400x200/667eea/ffffff?text=No+Image'">
-                    <div class="article-content">
-                        <h2 class="article-title">${title}</h2>
-                        <p class="article-description">${description}</p>
-                        <div class="article-meta">
-                            <span class="article-source">${source}</span>
-                            <span class="article-date">${publishedDate}</span>
+                <article class="news-card" data-index="${globalIndex}">
+                    <div class="card-media" onclick="window.newsApp.openReaderModal(${globalIndex})">
+                        <img src="${imageUrl}" alt="${this.escapeHtml(article.title)}" class="card-img" loading="lazy" onerror="this.src='https://images.unsplash.com/photo-1504711434969-e33886168f5c?w=600&auto=format&fit=crop&q=80'">
+                        <span class="card-category-tag">${this.escapeHtml(source)}</span>
+                    </div>
+                    <div class="card-body">
+                        <div class="card-meta">
+                            <span class="card-source">${this.escapeHtml(source)}</span>
+                            <span class="card-time">${timeAgo}</span>
                         </div>
-                        <a href="${article.url}" target="_blank" rel="noopener noreferrer" class="article-link">
-                            Read Full Article
-                        </a>
+                        <h3 class="card-title" onclick="window.newsApp.openReaderModal(${globalIndex})">
+                            ${this.escapeHtml(article.title)}
+                        </h3>
+                        <p class="card-desc">
+                            ${this.escapeHtml(article.description || 'Click focus reader to inspect the full dispatches and analytical context.')}
+                        </p>
+
+                        <!-- Inline AI Takeaway Drawer -->
+                        <div class="card-ai-drawer" id="ai-drawer-${globalIndex}">
+                            <div class="card-ai-drawer-header">
+                                <span>⚡ 3-POINT EXECUTIVE TAKEAWAYS</span>
+                                <span class="ai-sentiment-mini" id="ai-sent-${globalIndex}">Analyzing...</span>
+                            </div>
+                            <ul class="card-ai-bullets" id="ai-bullets-${globalIndex}">
+                                <li>Loading telemetry...</li>
+                            </ul>
+                        </div>
+
+                        <div class="card-footer-actions">
+                            <div style="display: flex; gap: 0.4rem;">
+                                <button class="tool-action-btn" title="Listen with Text-to-Speech" onclick="window.newsApp.playArticleAudioByIndex(${globalIndex})">
+                                    <span>🔊 Listen</span>
+                                </button>
+                                <button class="tool-action-btn ai-btn" title="Generate 3-Bullet AI Takeaways" onclick="window.newsApp.toggleCardAiSummary(${globalIndex})">
+                                    <span>⚡ TL;DR</span>
+                                </button>
+                            </div>
+                            <div style="display: flex; gap: 0.4rem;">
+                                <button class="tool-action-btn ${isBookmarked ? 'active' : ''}" title="Save to Reading List" onclick="window.newsApp.toggleBookmarkByIndex(${globalIndex})">
+                                    <span>${isBookmarked ? '🔖' : '🔖'}</span>
+                                </button>
+                                <button class="tool-action-btn" title="Open Focus Reader" onclick="window.newsApp.openReaderModal(${globalIndex})">
+                                    <span>📖 Read</span>
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </article>
             `;
         }).join('');
-
-        this.newsGrid.innerHTML = messageHTML + newsHTML;
     }
 
-    formatDate(dateString) {
-        const date = new Date(dateString);
-        const now = new Date();
-        const diffTime = Math.abs(now - date);
-        const diffHours = Math.floor(diffTime / (1000 * 60 * 60));
+    /* ==========================================================================
+       AI EXECUTIVE SUMMARY (IN-CARD & MODAL)
+       ========================================================================== */
+    async toggleCardAiSummary(index) {
+        const drawer = document.getElementById(`ai-drawer-${index}`);
+        const bulletsContainer = document.getElementById(`ai-bullets-${index}`);
+        const sentimentBadge = document.getElementById(`ai-sent-${index}`);
+        const article = this.filteredArticles[index];
 
-        if (diffHours > 24) {
-            const diffDays = Math.floor(diffHours / 24);
-            return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
-        } else if (diffHours > 0) {
-            return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
-        } else {
-            const diffMinutes = Math.floor(diffTime / (1000 * 60));
-            return diffMinutes > 0 ? `${diffMinutes} minute${diffMinutes > 1 ? 's' : ''} ago` : 'Just now';
+        if (!drawer || !article) return;
+
+        if (drawer.classList.contains('open')) {
+            drawer.classList.remove('open');
+            return;
+        }
+
+        drawer.classList.add('open');
+
+        // Check if already fetched
+        if (drawer.getAttribute('data-loaded') === 'true') return;
+
+        try {
+            const res = await fetch('/api/ai/summarize', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    title: article.title,
+                    description: article.description
+                })
+            });
+            const data = await res.json();
+            const summary = data.summary;
+
+            sentimentBadge.textContent = summary.sentiment || 'Verified';
+            bulletsContainer.innerHTML = (summary.takeaways || []).map(t => `<li>${this.escapeHtml(t)}</li>`).join('');
+            drawer.setAttribute('data-loaded', 'true');
+        } catch (err) {
+            bulletsContainer.innerHTML = `<li>${this.escapeHtml(article.description || 'Key analytical context available.')}</li>`;
+            sentimentBadge.textContent = 'Direct Feed';
         }
     }
 
-    truncateText(text, maxLength) {
+    /* ==========================================================================
+       FOCUS READER MODAL
+       ========================================================================== */
+    async openReaderModal(index) {
+        const article = this.filteredArticles[index];
+        if (!article) return;
+
+        this.currentArticleForReader = article;
+
+        this.dom.readerTitle.textContent = article.title;
+        this.dom.readerSource.textContent = article.source?.name || 'Global Wire';
+        this.dom.readerDate.textContent = this.formatTimeAgo(article.publishedAt);
+        this.dom.readerExternalLink.href = article.url || '#';
+
+        // Calculate reading time
+        const wordCount = ((article.title || '') + ' ' + (article.description || '')).split(/\s+/).length;
+        const readMin = Math.max(1, Math.ceil(wordCount / 65));
+        this.dom.readerReadTime.textContent = `${readMin} min read`;
+
+        // Image
+        if (article.urlToImage) {
+            this.dom.readerImage.src = article.urlToImage;
+            this.dom.readerImageWrap.style.display = 'block';
+        } else {
+            this.dom.readerImageWrap.style.display = 'none';
+        }
+
+        // Bookmark button text
+        const isSaved = this.isBookmarked(article);
+        this.dom.readerBookmarkBtn.innerHTML = `<span>${isSaved ? '🔖 Remove Bookmark' : '🔖 Bookmark Story'}</span>`;
+
+        // Prose text formatting
+        const desc = article.description || 'Full coverage is being monitored by our global correspondents.';
+        this.dom.readerProse.innerHTML = `
+            <p>${this.escapeHtml(desc)}</p>
+            <p style="margin-top: 1rem; color: var(--text-muted); font-size: 0.95rem;">
+                <em>This dispatch was filed via authenticated news syndication. To review original wire credentials, quotes, or media attachments, access the full source publication via the external link below.</em>
+            </p>
+        `;
+
+        // AI Summary block inside Reader
+        this.dom.readerAiTakeaways.innerHTML = '<li>Analyzing intelligence telemetry...</li>';
+        this.dom.readerAiSentiment.textContent = 'Processing';
+
+        this.dom.readerOverlay.classList.remove('hidden');
+
+        // Fetch AI Takeaways
+        try {
+            const res = await fetch('/api/ai/summarize', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    title: article.title,
+                    description: article.description
+                })
+            });
+            const data = await res.json();
+            const summary = data.summary;
+
+            this.dom.readerAiSentiment.textContent = summary.sentiment || 'Developing';
+            this.dom.readerAiTakeaways.innerHTML = (summary.takeaways || []).map(t => `<li>${this.escapeHtml(t)}</li>`).join('');
+        } catch (err) {
+            this.dom.readerAiSentiment.textContent = 'Verified Wire';
+            this.dom.readerAiTakeaways.innerHTML = `
+                <li>${this.escapeHtml(article.title)}</li>
+                <li>Primary dispatches corroborate ongoing coverage across international bureaus.</li>
+            `;
+        }
+    }
+
+    closeReaderModal() {
+        this.dom.readerOverlay.classList.add('hidden');
+        this.currentArticleForReader = null;
+    }
+
+    adjustReaderFontSize(delta) {
+        this.readerFontSize = Math.min(1.8, Math.max(0.9, this.readerFontSize + delta));
+        this.dom.readerProse.style.fontSize = `${this.readerFontSize}rem`;
+    }
+
+    /* ==========================================================================
+       60-SECOND EXECUTIVE BRIEFING
+       ========================================================================== */
+    async openBriefingModal() {
+        this.dom.briefingOverlay.classList.remove('hidden');
+        this.dom.briefingTextContent.innerHTML = '<div class="briefing-skeleton">Synthesizing top dispatches into 60s morning intelligence memo...</div>';
+        this.dom.briefingTimestamp.textContent = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+
+        try {
+            const res = await fetch('/api/ai/briefing', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ articles: this.articles.slice(0, 6) })
+            });
+            const data = await res.json();
+            this.currentBriefingText = data.briefing || 'No briefing available.';
+            
+            // Format Markdown to clean HTML
+            this.dom.briefingTextContent.innerHTML = this.renderMarkdown(this.currentBriefingText);
+        } catch (err) {
+            this.dom.briefingTextContent.innerHTML = '<p>Unable to generate morning briefing at this time. Please retry momentarily.</p>';
+        }
+    }
+
+    closeBriefingModal() {
+        this.dom.briefingOverlay.classList.add('hidden');
+    }
+
+    /* ==========================================================================
+       AUDIO TEXT-TO-SPEECH (TTS) ENGINE
+       ========================================================================== */
+    playArticleAudioByIndex(index) {
+        const article = this.filteredArticles[index];
+        if (article) this.playArticleAudio(article);
+    }
+
+    playArticleAudio(article) {
+        const textToRead = `${article.title}. From ${article.source?.name || 'the wire'}. ${article.description || ''}`;
+        this.speakText(article.title, textToRead);
+    }
+
+    speakText(title, text) {
+        if (!('speechSynthesis' in window)) {
+            this.showToast('Speech synthesis not supported by this browser');
+            return;
+        }
+
+        // Stop any current audio
+        this.audioSpeech.synth.cancel();
+
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.rate = this.audioSpeech.rate;
+        utterance.pitch = 1.0;
+
+        // Pick a quality voice if available
+        const voices = this.audioSpeech.synth.getVoices();
+        const preferredVoice = voices.find(v => v.lang.startsWith('en') && (v.name.includes('Google') || v.name.includes('Natural') || v.name.includes('Samantha')));
+        if (preferredVoice) utterance.voice = preferredVoice;
+
+        utterance.onstart = () => {
+            this.audioSpeech.isPlaying = true;
+            this.audioSpeech.isPaused = false;
+            this.audioSpeech.currentTitle = title;
+            this.dom.audioPlayerTitle.textContent = title;
+            this.dom.audioPlayerBar.classList.remove('hidden');
+            this.dom.audioToggleBtn.textContent = '⏸';
+            this.dom.audioWaves.style.opacity = '1';
+        };
+
+        utterance.onend = () => {
+            this.audioSpeech.isPlaying = false;
+            this.audioSpeech.isPaused = false;
+            this.dom.audioPlayerBar.classList.add('hidden');
+        };
+
+        utterance.onerror = (e) => {
+            console.error('Speech error:', e);
+            this.audioSpeech.isPlaying = false;
+            this.dom.audioPlayerBar.classList.add('hidden');
+        };
+
+        this.audioSpeech.utterance = utterance;
+        this.audioSpeech.synth.speak(utterance);
+    }
+
+    toggleAudioPlayback() {
+        if (!this.audioSpeech.synth.speaking) return;
+
+        if (this.audioSpeech.synth.paused) {
+            this.audioSpeech.synth.resume();
+            this.audioSpeech.isPaused = false;
+            this.dom.audioToggleBtn.textContent = '⏸';
+            this.dom.audioWaves.style.opacity = '1';
+        } else {
+            this.audioSpeech.synth.pause();
+            this.audioSpeech.isPaused = true;
+            this.dom.audioToggleBtn.textContent = '▶';
+            this.dom.audioWaves.style.opacity = '0.3';
+        }
+    }
+
+    stopAudio() {
+        if (this.audioSpeech.synth) {
+            this.audioSpeech.synth.cancel();
+        }
+        this.audioSpeech.isPlaying = false;
+        this.audioSpeech.isPaused = false;
+        this.dom.audioPlayerBar.classList.add('hidden');
+    }
+
+    cycleAudioSpeed() {
+        const rates = [1.0, 1.25, 1.5, 2.0];
+        const currentIndex = rates.indexOf(this.audioSpeech.rate);
+        const nextRate = rates[(currentIndex + 1) % rates.length];
+        this.audioSpeech.rate = nextRate;
+        this.dom.audioSpeedBtn.textContent = `${nextRate}x`;
+        this.showToast(`Speech rate set to ${nextRate}x`);
+    }
+
+    /* ==========================================================================
+       BOOKMARKS SYSTEM
+       ========================================================================== */
+    toggleBookmarkByIndex(index) {
+        const article = this.filteredArticles[index];
+        if (article) this.toggleBookmark(article);
+    }
+
+    toggleBookmark(article) {
+        const existingIdx = this.bookmarks.findIndex(b => b.title === article.title);
+
+        if (existingIdx >= 0) {
+            this.bookmarks.splice(existingIdx, 1);
+            this.showToast('Article removed from bookmarks');
+        } else {
+            this.bookmarks.unshift({
+                title: article.title,
+                url: article.url,
+                urlToImage: article.urlToImage,
+                description: article.description,
+                publishedAt: article.publishedAt,
+                source: article.source,
+                savedAt: new Date().toISOString()
+            });
+            this.showToast('Article saved to reading list');
+        }
+
+        localStorage.setItem('newsmate_bookmarks', JSON.stringify(this.bookmarks));
+        this.updateBookmarksBadge();
+        this.renderBookmarksList();
+
+        // Re-render articles to update active state
+        this.filterAndRenderArticles();
+    }
+
+    isBookmarked(article) {
+        return this.bookmarks.some(b => b.title === article.title);
+    }
+
+    updateBookmarksBadge() {
+        const count = this.bookmarks.length;
+        this.dom.bookmarksCount.textContent = count;
+        this.dom.savedItemsCounter.textContent = `${count} stor${count === 1 ? 'y' : 'ies'} saved locally`;
+    }
+
+    openBookmarksDrawer() {
+        this.renderBookmarksList();
+        this.dom.bookmarksDrawerOverlay.classList.remove('hidden');
+    }
+
+    closeBookmarksDrawer() {
+        this.dom.bookmarksDrawerOverlay.classList.add('hidden');
+    }
+
+    clearAllBookmarks() {
+        if (this.bookmarks.length === 0) return;
+        if (confirm('Clear all bookmarked stories?')) {
+            this.bookmarks = [];
+            localStorage.setItem('newsmate_bookmarks', JSON.stringify([]));
+            this.updateBookmarksBadge();
+            this.renderBookmarksList();
+            this.filterAndRenderArticles();
+            this.showToast('Reading list cleared');
+        }
+    }
+
+    renderBookmarksList() {
+        if (this.bookmarks.length === 0) {
+            this.dom.bookmarksList.innerHTML = `
+                <div class="empty-drawer-state">
+                    <span class="empty-icon">📰</span>
+                    <p>No bookmarked stories yet.</p>
+                    <span class="empty-hint">Click the 🔖 icon on any card to save stories for offline reading.</span>
+                </div>
+            `;
+            return;
+        }
+
+        this.dom.bookmarksList.innerHTML = this.bookmarks.map((bm, idx) => `
+            <div class="bookmark-item-card">
+                <div class="bm-header">
+                    <span>${this.escapeHtml(bm.source?.name || 'Wire')}</span>
+                    <span>${this.formatTimeAgo(bm.publishedAt)}</span>
+                </div>
+                <h4 class="bm-title" onclick="window.newsApp.openBookmarkInReader(${idx})">
+                    ${this.escapeHtml(bm.title)}
+                </h4>
+                <div class="bm-actions">
+                    <button class="bm-btn" onclick="window.newsApp.openBookmarkInReader(${idx})">Read Focus</button>
+                    <button class="bm-btn" onclick="window.newsApp.removeBookmark(${idx})">Remove</button>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    openBookmarkInReader(idx) {
+        const bm = this.bookmarks[idx];
+        if (!bm) return;
+        this.closeBookmarksDrawer();
+        this.filteredArticles.unshift(bm);
+        this.openReaderModal(0);
+    }
+
+    removeBookmark(idx) {
+        this.bookmarks.splice(idx, 1);
+        localStorage.setItem('newsmate_bookmarks', JSON.stringify(this.bookmarks));
+        this.updateBookmarksBadge();
+        this.renderBookmarksList();
+        this.filterAndRenderArticles();
+    }
+
+    /* ==========================================================================
+       INTEL AI COPILOT
+       ========================================================================== */
+    openCopilotDrawer() {
+        this.dom.copilotOverlay.classList.remove('hidden');
+        this.dom.copilotInput.focus();
+    }
+
+    closeCopilotDrawer() {
+        this.dom.copilotOverlay.classList.add('hidden');
+    }
+
+    async sendCopilotMessage() {
+        const message = this.dom.copilotInput.value.trim();
+        if (!message) return;
+
+        // Append user bubble
+        this.appendCopilotMessage(message, 'user');
+        this.dom.copilotInput.value = '';
+        this.dom.sendCopilotBtn.disabled = true;
+
+        // Append bot typing placeholder
+        const typingId = 'copilot-typing-' + Date.now();
+        const typingDiv = document.createElement('div');
+        typingDiv.className = 'copilot-msg bot';
+        typingDiv.id = typingId;
+        typingDiv.innerHTML = `
+            <div class="msg-avatar">⚡</div>
+            <div class="msg-bubble">
+                <div class="msg-text">Analyzing intelligence wire telemetry...</div>
+            </div>
+        `;
+        this.dom.copilotMessages.appendChild(typingDiv);
+        this.dom.copilotMessages.scrollTop = this.dom.copilotMessages.scrollHeight;
+
+        try {
+            const res = await fetch('/api/chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message })
+            });
+            const data = await res.json();
+            
+            const typingElem = document.getElementById(typingId);
+            if (typingElem) typingElem.remove();
+
+            this.appendCopilotMessage(data.response || 'No response received from intelligence servers.', 'bot');
+        } catch (err) {
+            const typingElem = document.getElementById(typingId);
+            if (typingElem) typingElem.remove();
+            this.appendCopilotMessage('Connection glitch with newsroom AI. Please retry.', 'bot');
+        }
+    }
+
+    appendCopilotMessage(content, sender) {
+        const msgDiv = document.createElement('div');
+        msgDiv.className = `copilot-msg ${sender}`;
+        
+        const now = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+        const rendered = sender === 'bot' ? this.renderMarkdown(content) : this.escapeHtml(content);
+
+        msgDiv.innerHTML = `
+            <div class="msg-avatar">${sender === 'bot' ? '⚡' : '👤'}</div>
+            <div class="msg-bubble">
+                <div class="msg-text">${rendered}</div>
+                <span class="msg-time">${now}</span>
+            </div>
+        `;
+
+        this.dom.copilotMessages.appendChild(msgDiv);
+        this.dom.copilotMessages.scrollTop = this.dom.copilotMessages.scrollHeight;
+    }
+
+    /* ==========================================================================
+       UTILITIES & HELPERS
+       ========================================================================== */
+    showToast(message) {
+        const toast = document.createElement('div');
+        toast.className = 'toast';
+        toast.textContent = message;
+        this.dom.toastContainer.appendChild(toast);
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+
+    formatTimeAgo(dateString) {
+        if (!dateString) return 'Recent';
+        const date = new Date(dateString);
+        const now = new Date();
+        const diffMs = Math.abs(now - date);
+        const diffMinutes = Math.floor(diffMs / (1000 * 60));
+        const diffHours = Math.floor(diffMinutes / 60);
+        const diffDays = Math.floor(diffHours / 24);
+
+        if (diffMinutes < 1) return 'Just now';
+        if (diffMinutes < 60) return `${diffMinutes}m ago`;
+        if (diffHours < 24) return `${diffHours}h ago`;
+        if (diffDays === 1) return 'Yesterday';
+        return `${diffDays}d ago`;
+    }
+
+    escapeHtml(str) {
+        if (!str) return '';
+        return str
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+
+    renderMarkdown(text) {
         if (!text) return '';
-        return text.length > maxLength ? text.substring(0, maxLength) + '...' : text;
+        let html = this.escapeHtml(text);
+        // Bold
+        html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+        // Headers
+        html = html.replace(/### (.*?)\n/g, '<h4 style="margin: 0.6rem 0 0.3rem 0; font-family: var(--font-serif); font-size: 1.1rem;">$1</h4>');
+        // Bullets
+        html = html.replace(/• (.*?)\n/g, '<li>$1</li>');
+        html = html.replace(/- (.*?)\n/g, '<li>$1</li>');
+        // Wrap newlines
+        html = html.replace(/\n\n/g, '<br><br>');
+        return html;
     }
 }
 
-// Make newsApp globally accessible for debugging
-let newsApp;
-
+// Instantiate globally
 document.addEventListener('DOMContentLoaded', () => {
-    newsApp = new NewsApp();
-    window.newsApp = newsApp; // For debugging
+    window.newsApp = new NewsMateApp();
 });

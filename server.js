@@ -3,6 +3,7 @@ const path = require('path');
 const cors = require('cors');
 const axios = require('axios');
 const NewsChatbot = require('./chatbot');
+const simpleScraper = require('./simple-scraper');
 require('dotenv').config();
 
 // Initialize chatbot
@@ -11,7 +12,7 @@ const chatbot = new NewsChatbot();
 const PORT = process.env.PORT || 3000;
 const app = express();
 
-// Enable CORS for all routes
+// Middleware
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -26,14 +27,36 @@ const countryNames = {
     'us': 'United States', 'in': 'India', 'gb': 'United Kingdom', 'ca': 'Canada',
     'au': 'Australia', 'de': 'Germany', 'fr': 'France', 'jp': 'Japan',
     'cn': 'China', 'br': 'Brazil', 'ru': 'Russia', 'za': 'South Africa',
-    'mx': 'Mexico', 'it': 'Italy', 'es': 'Spain', 'nl': 'Netherlands', 'se': 'Sweden'
+    'mx': 'Mexico', 'it': 'Italy', 'es': 'Spain', 'nl': 'Netherlands', 'se': 'Sweden',
+    'world': 'Global Wire'
 };
 
 function getCountryName(countryCode) {
-    return countryNames[countryCode] || countryCode.toUpperCase();
+    return countryNames[countryCode] || (countryCode ? countryCode.toUpperCase() : 'Global');
 }
 
-// NewsAPI supported countries (these work well with NewsAPI)
+// Category mappings
+const categoryNewsApi = {
+    'general': 'general',
+    'technology': 'technology',
+    'business': 'business',
+    'science': 'science',
+    'entertainment': 'entertainment',
+    'sports': 'sports',
+    'health': 'health'
+};
+
+const categoryGuardian = {
+    'general': 'news',
+    'technology': 'technology',
+    'business': 'business',
+    'science': 'science',
+    'entertainment': 'culture',
+    'sports': 'sport',
+    'health': 'society'
+};
+
+// NewsAPI supported countries
 const newsApiSupportedCountries = [
     'us', 'gb', 'ca', 'au', 'de', 'fr', 'it', 'nl', 'se', 'in', 'br', 'mx', 'za'
 ];
@@ -59,7 +82,7 @@ const guardianSections = {
     'se': 'world'
 };
 
-// Country-specific Guardian queries for better coverage
+// Country-specific Guardian queries
 const guardianQueries = {
     'in': 'India OR Indian OR Delhi OR Mumbai',
     'cn': 'China OR Chinese OR Beijing OR Shanghai',
@@ -74,50 +97,64 @@ const guardianQueries = {
     'nl': 'Netherlands OR Dutch OR Amsterdam'
 };
 
-// Enhanced News API configurations
+// Primary News APIs
 const newsAPIs = [
     {
-        name: 'NewsAPI',
+        name: 'NewsAPI Top-Headlines',
         url: 'https://newsapi.org/v2/top-headlines',
         apiKey: process.env.NEWS_API_KEY,
-        getParams: (country) => ({
-            country: country,
-            apiKey: process.env.NEWS_API_KEY,
-            pageSize: 20
-        }),
+        getParams: (country, category, q) => {
+            const params = {
+                apiKey: process.env.NEWS_API_KEY,
+                pageSize: 24
+            };
+            if (q) {
+                params.q = q;
+            } else {
+                if (country && country !== 'world') params.country = country;
+                if (category && category !== 'general' && categoryNewsApi[category]) {
+                    params.category = categoryNewsApi[category];
+                }
+            }
+            return params;
+        },
         transformResponse: (data) => data,
-        supportsCountry: (country) => newsApiSupportedCountries.includes(country)
+        supportsCountry: (country) => country === 'world' || newsApiSupportedCountries.includes(country)
     },
     {
-        name: 'Guardian API (Country-Specific)',
+        name: 'The Guardian',
         url: 'https://content.guardianapis.com/search',
         apiKey: process.env.GUARDIAN_API_KEY,
-        getParams: (country) => {
-            const section = guardianSections[country] || 'world';
-            const query = guardianQueries[country];
+        getParams: (country, category, q) => {
+            const section = (category && categoryGuardian[category]) 
+                ? categoryGuardian[category] 
+                : (guardianSections[country] || 'world');
+            const countryQuery = guardianQueries[country];
             
             const params = {
                 'api-key': process.env.GUARDIAN_API_KEY,
-                'show-fields': 'thumbnail,trailText,byline',
-                'page-size': 20,
+                'show-fields': 'thumbnail,trailText,byline,bodyText',
+                'page-size': 24,
                 'order-by': 'newest'
             };
             
-            if (section !== 'world' || ['us', 'gb', 'au'].includes(country)) {
+            if (section && section !== 'world') {
                 params.section = section;
             }
             
-            if (query) {
-                params.q = query;
+            if (q) {
+                params.q = q;
+            } else if (countryQuery) {
+                params.q = countryQuery;
             }
             
             return params;
         },
         transformResponse: (data) => ({
             status: 'ok',
-            articles: data.response.results.map(article => ({
+            articles: (data.response?.results || []).map(article => ({
                 title: article.webTitle,
-                description: article.fields?.trailText || 'Read full article for details',
+                description: article.fields?.trailText || 'Read full coverage on The Guardian.',
                 url: article.webUrl,
                 urlToImage: article.fields?.thumbnail || null,
                 publishedAt: article.webPublicationDate,
@@ -125,281 +162,215 @@ const newsAPIs = [
                 author: article.fields?.byline || 'The Guardian'
             }))
         }),
-        supportsCountry: (country) => true // Guardian supports all countries with search
+        supportsCountry: () => true
     },
     {
         name: 'NewsData.io',
         url: 'https://newsdata.io/api/1/news',
         apiKey: process.env.NEWSDATA_API_KEY,
-        getParams: (country) => ({
-            apikey: process.env.NEWSDATA_API_KEY,
-            country: country,
-            language: 'en',
-            size: 20
-        }),
+        getParams: (country, category, q) => {
+            const params = {
+                apikey: process.env.NEWSDATA_API_KEY,
+                language: 'en',
+                size: 20
+            };
+            if (q) params.q = q;
+            if (country && country !== 'world') params.country = country;
+            if (category && category !== 'general') params.category = category;
+            return params;
+        },
         transformResponse: (data) => ({
             status: 'ok',
-            articles: data.results ? data.results.map(article => ({
+            articles: (data.results || []).map(article => ({
                 title: article.title,
-                description: article.description || 'Read full article for details',
+                description: article.description || 'Read full article for details.',
                 url: article.link,
                 urlToImage: article.image_url,
                 publishedAt: article.pubDate,
                 source: { name: article.source_id || 'NewsData' },
-                author: article.creator ? article.creator[0] : 'NewsData'
-            })) : []
+                author: article.creator ? article.creator[0] : 'NewsData Wire'
+            }))
         }),
-        supportsCountry: (country) => true
+        supportsCountry: () => true
     }
 ];
 
-// Universal fallback APIs that work for all countries
+// Universal Fallback APIs
 const universalFallbackAPIs = [
     {
-        name: 'NewsAPI Everything (Global)',
+        name: 'NewsAPI Global Search',
         url: 'https://newsapi.org/v2/everything',
         apiKey: process.env.NEWS_API_KEY,
-        getParams: (country) => {
+        getParams: (country, category, q) => {
             const countryName = getCountryName(country);
+            const query = q || `"${countryName}" OR ${country.toUpperCase()}`;
             return {
-                q: `"${countryName}" OR ${country.toUpperCase()}`,
+                q: query,
                 language: 'en',
                 sortBy: 'publishedAt',
                 apiKey: process.env.NEWS_API_KEY,
                 pageSize: 20,
-                from: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] // Last 7 days
+                from: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
             };
         },
         transformResponse: (data) => data,
-        supportsCountry: (country) => true
-    },
-    {
-        name: 'Guardian Global Search',
-        url: 'https://content.guardianapis.com/search',
-        apiKey: process.env.GUARDIAN_API_KEY,
-        getParams: (country) => {
-            const countryName = getCountryName(country);
-            const specificQuery = guardianQueries[country] || countryName;
-            
-            return {
-                'api-key': process.env.GUARDIAN_API_KEY,
-                'show-fields': 'thumbnail,trailText,byline',
-                'page-size': 20,
-                'order-by': 'newest',
-                'q': specificQuery,
-                'from-date': new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
-            };
-        },
-        transformResponse: (data) => ({
-            status: 'ok',
-            articles: data.response.results.map(article => ({
-                title: article.webTitle,
-                description: article.fields?.trailText || 'Read full article for details',
-                url: article.webUrl,
-                urlToImage: article.fields?.thumbnail || null,
-                publishedAt: article.webPublicationDate,
-                source: { name: 'The Guardian Global' },
-                author: article.fields?.byline || 'The Guardian'
-            }))
-        }),
-        supportsCountry: (country) => true
-    },
-    {
-        name: 'NewsData Global',
-        url: 'https://newsdata.io/api/1/news',
-        apiKey: process.env.NEWSDATA_API_KEY,
-        getParams: (country) => {
-            const countryName = getCountryName(country);
-            return {
-                apikey: process.env.NEWSDATA_API_KEY,
-                q: countryName,
-                language: 'en',
-                size: 20
-            };
-        },
-        transformResponse: (data) => ({
-            status: 'ok',
-            articles: data.results ? data.results.map(article => ({
-                title: article.title,
-                description: article.description || 'Read full article for details',
-                url: article.link,
-                urlToImage: article.image_url,
-                publishedAt: article.pubDate,
-                source: { name: article.source_id || 'NewsData Global' },
-                author: article.creator ? article.creator[0] : 'NewsData'
-            })) : []
-        }),
-        supportsCountry: (country) => true
-    }
-];
-
-// Last resort international news
-const lastResortAPIs = [
-    {
-        name: 'US News as Fallback',
-        url: 'https://newsapi.org/v2/top-headlines',
-        apiKey: process.env.NEWS_API_KEY,
-        getParams: () => ({
-            country: 'us',
-            apiKey: process.env.NEWS_API_KEY,
-            pageSize: 15
-        }),
-        transformResponse: (data) => data,
-        supportsCountry: () => true
-    },
-    {
-        name: 'World News',
-        url: 'https://content.guardianapis.com/search',
-        apiKey: process.env.GUARDIAN_API_KEY,
-        getParams: () => ({
-            'api-key': process.env.GUARDIAN_API_KEY,
-            'show-fields': 'thumbnail,trailText,byline',
-            'page-size': 15,
-            'order-by': 'newest',
-            'section': 'world'
-        }),
-        transformResponse: (data) => ({
-            status: 'ok',
-            articles: data.response.results.map(article => ({
-                title: article.webTitle,
-                description: article.fields?.trailText || 'Read full article for details',
-                url: article.webUrl,
-                urlToImage: article.fields?.thumbnail || null,
-                publishedAt: article.webPublicationDate,
-                source: { name: 'The Guardian World' },
-                author: article.fields?.byline || 'The Guardian'
-            }))
-        }),
         supportsCountry: () => true
     }
 ];
 
-async function fetchNewsFromAPI(api, country) {
-    try {
-        if (!api.apiKey) {
-            throw new Error(`${api.name} API key not configured`);
-        }
-
-        if (api.supportsCountry && !api.supportsCountry(country)) {
-            throw new Error(`${api.name} doesn't support country: ${country}`);
-        }
-
-        const params = api.getParams(country);
-        console.log(`🔄 Trying ${api.name} for ${getCountryName(country)}...`);
-
-        const response = await axios.get(api.url, { 
-            params,
-            timeout: 15000
-        });
-        
-        if (response.status === 200 && response.data) {
-            const transformedData = api.transformResponse(response.data);
-            
-            if (transformedData.articles && transformedData.articles.length > 0) {
-                console.log(`✅ ${api.name} returned ${transformedData.articles.length} articles`);
-                return {
-                    ...transformedData,
-                    apiSource: api.name
-                };
-            }
-        }
-        
-        throw new Error('No articles found');
-    } catch (error) {
-        console.error(`❌ ${api.name} failed:`, error.message);
-        throw error;
+async function fetchNewsFromAPI(api, country, category, q) {
+    if (!api.apiKey) {
+        throw new Error(`${api.name} API key not configured`);
     }
+
+    if (api.supportsCountry && !api.supportsCountry(country)) {
+        throw new Error(`${api.name} does not support country: ${country}`);
+    }
+
+    const params = api.getParams(country, category, q);
+    console.log(`🔄 Trying ${api.name}...`);
+
+    const response = await axios.get(api.url, { 
+        params,
+        timeout: 12000
+    });
+    
+    if (response.status === 200 && response.data) {
+        const transformedData = api.transformResponse(response.data);
+        if (transformedData.articles && transformedData.articles.length > 0) {
+            console.log(`✅ ${api.name} returned ${transformedData.articles.length} articles`);
+            return {
+                ...transformedData,
+                apiSource: api.name
+            };
+        }
+    }
+    
+    throw new Error('No articles returned');
 }
 
-// Enhanced API endpoint with comprehensive fallback system
+// Main News Endpoint with 4-Tier Zero-Key Resiliency
 app.get('/api/news', async (req, res) => {
+    const country = (req.query.country || 'us').toLowerCase();
+    const category = (req.query.category || 'general').toLowerCase();
+    const q = req.query.q ? req.query.q.trim() : '';
+    const countryName = getCountryName(country);
+
+    console.log(`\n📰 Request: ${countryName} [${country}] | Category: ${category} | Query: "${q}"`);
+
+    // Step 1: Try Primary APIs (NewsAPI, Guardian, NewsData)
+    for (const api of newsAPIs) {
+        if (!api.apiKey) continue;
+        try {
+            const result = await fetchNewsFromAPI(api, country, category, q);
+            return res.json({
+                ...result,
+                country: countryName,
+                countryCode: country,
+                category: category,
+                fallbackActive: false,
+                message: null
+            });
+        } catch (err) {
+            console.log(`⚠️ ${api.name} bypassed:`, err.message);
+        }
+    }
+
+    // Step 2: Try Universal Search APIs
+    for (const api of universalFallbackAPIs) {
+        if (!api.apiKey) continue;
+        try {
+            const result = await fetchNewsFromAPI(api, country, category, q);
+            return res.json({
+                ...result,
+                country: countryName,
+                countryCode: country,
+                category: category,
+                fallbackActive: false,
+                message: `Dispatches gathered from global wire archives for ${countryName}.`
+            });
+        } catch (err) {
+            console.log(`⚠️ Fallback ${api.name} bypassed:`, err.message);
+        }
+    }
+
+    // Step 3: Tier 4 Live RSS & Open Feeds Engine (Zero-Key Guaranteed Reliability)
+    console.log(`⚡ Initiating Tier 4 Zero-Key Live Wire Engine for ${countryName}...`);
     try {
-        const country = req.query.country || 'us';
-        const countryName = getCountryName(country);
-        console.log(`\n📰 === Fetching news for: ${countryName} (${country}) ===`);
+        const fallbackArticles = await simpleScraper.getLiveFallbackNews(country, category);
+        if (fallbackArticles && fallbackArticles.length > 0) {
+            console.log(`✅ Live RSS & Open Feeds returned ${fallbackArticles.length} fresh articles`);
+            return res.json({
+                status: 'ok',
+                articles: fallbackArticles,
+                apiSource: 'NewsMate Zero-Key RSS & Live Wire Engine',
+                country: countryName,
+                countryCode: country,
+                category: category,
+                fallbackActive: true,
+                message: `Live dispatches served via verified direct wire feeds for ${countryName}.`
+            });
+        }
+    } catch (err) {
+        console.error('❌ RSS Fallback failed:', err.message);
+    }
 
-        // Step 1: Try primary country-specific APIs
-        console.log(`🎯 Step 1: Trying primary APIs for ${countryName}...`);
-        const supportedAPIs = newsAPIs.filter(api => 
-            !api.supportsCountry || api.supportsCountry(country)
-        );
+    // Step 4: If everything genuinely failed (e.g. complete network cutoff)
+    return res.status(503).json({
+        error: `News temporarily unavailable for ${countryName}`,
+        message: 'Could not reach upstream news wires or local feeds. Please verify internet connection.',
+        country: country,
+        countryName: countryName,
+        suggestions: [
+            'Check your network connection',
+            'Try selecting "United States" or "World Wire"',
+            'Select a different category (e.g. Technology or Business)'
+        ]
+    });
+});
 
-        for (const api of supportedAPIs) {
-            try {
-                const result = await fetchNewsFromAPI(api, country);
-                console.log(`🎉 Success with ${api.name} for ${countryName}`);
-                return res.json({
-                    ...result,
-                    message: null,
-                    country: countryName
-                });
-            } catch (error) {
-                console.log(`⚠️ ${api.name} failed for ${countryName}, trying next...`);
-                continue;
-            }
+// AI Article Summarization Endpoint
+app.post('/api/ai/summarize', async (req, res) => {
+    try {
+        const { title, description, content } = req.body;
+        if (!title && !description) {
+            return res.status(400).json({ error: 'Title or description is required for summarization' });
         }
 
-        // Step 2: Try universal fallback APIs
-        console.log(`🔄 Step 2: Primary APIs failed, trying universal fallbacks for ${countryName}...`);
-        for (const api of universalFallbackAPIs) {
-            try {
-                const result = await fetchNewsFromAPI(api, country);
-                console.log(`🎉 Success with fallback ${api.name}`);
-                return res.json({
-                    ...result,
-                    message: `Found ${countryName} news from our global sources.`,
-                    country: countryName
-                });
-            } catch (error) {
-                console.log(`⚠️ Fallback ${api.name} failed, trying next...`);
-                continue;
-            }
-        }
-
-        // Step 3: Last resort - international news
-        console.log(`🆘 Step 3: All fallbacks failed, trying last resort for ${countryName}...`);
-        for (const api of lastResortAPIs) {
-            try {
-                const result = await fetchNewsFromAPI(api, null);
-                console.log(`🎉 Success with last resort ${api.name}`);
-                return res.json({
-                    ...result,
-                    message: `${countryName} news temporarily unavailable. Showing international headlines instead.`,
-                    country: countryName
-                });
-            } catch (error) {
-                console.log(`⚠️ Last resort ${api.name} failed, trying next...`);
-                continue;
-            }
-        }
-
-        throw new Error('All news sources exhausted');
-
-    } catch (error) {
-        console.error(`💥 All sources failed for ${getCountryName(req.query.country || 'us')}:`, error.message);
-        
-        res.status(503).json({ 
-            error: `News currently unavailable for ${getCountryName(req.query.country || 'us')}`,
-            message: `We're having trouble fetching news for ${getCountryName(req.query.country || 'us')} right now. This could be due to temporary API issues or network problems.`,
-            details: error.message,
-            country: req.query.country,
-            countryName: getCountryName(req.query.country || 'us'),
-            suggestions: [
-                'Try selecting United States for most reliable coverage',
-                'Check your internet connection',
-                'Try again in a few minutes',
-                'Some news sources may be temporarily down'
-            ],
-            availableAPIs: newsAPIs.map(api => ({
-                name: api.name,
-                configured: !!api.apiKey,
-                supportsCountry: !api.supportsCountry || api.supportsCountry(req.query.country || 'us')
-            }))
+        const summary = await chatbot.summarizeArticle(title, description, content);
+        res.json({
+            status: 'ok',
+            summary,
+            timestamp: new Date().toISOString()
+        });
+    } catch (err) {
+        console.error('Summarize error:', err);
+        res.status(500).json({
+            error: 'Failed to generate summary',
+            details: err.message
         });
     }
 });
 
-// Chatbot endpoints (existing code)
+// AI Executive Daily Briefing Endpoint
+app.post('/api/ai/briefing', async (req, res) => {
+    try {
+        const { articles } = req.body;
+        const briefingResult = await chatbot.generateExecutiveBriefing(articles || []);
+        res.json({
+            status: 'ok',
+            ...briefingResult
+        });
+    } catch (err) {
+        console.error('Briefing error:', err);
+        res.status(500).json({
+            error: 'Failed to generate briefing',
+            details: err.message
+        });
+    }
+});
+
+// Chatbot Endpoints
 app.post('/api/chat', async (req, res) => {
     try {
         const { message } = req.body;
@@ -407,16 +378,16 @@ app.post('/api/chat', async (req, res) => {
         if (!message || message.trim() === '') {
             return res.status(400).json({
                 error: 'Message is required',
-                response: 'Please enter a message to chat with NewsBot.',
+                response: 'Please enter a query for the NewsMate Intelligence Copilot.',
                 suggestions: chatbot.getQuickSuggestions()
             });
         }
 
         const cleanMessage = message.trim();
-        if (cleanMessage.length > 500) {
+        if (cleanMessage.length > 600) {
             return res.status(400).json({
                 error: 'Message too long',
-                response: 'Please keep your message under 500 characters.',
+                response: 'Please keep your message under 600 characters.',
                 suggestions: chatbot.getQuickSuggestions()
             });
         }
@@ -428,15 +399,14 @@ app.post('/api/chat', async (req, res) => {
             response: response,
             suggestions: suggestions,
             timestamp: new Date().toISOString(),
-            powered_by: process.env.GEMINI_API_KEY ? 'Gemini AI' : 'Rule-based'
+            powered_by: process.env.GEMINI_API_KEY ? 'Gemini 1.5 Flash' : 'NewsMate Editorial Engine'
         });
 
     } catch (error) {
         console.error('Chatbot error:', error);
-        
         res.status(500).json({
             error: 'Chatbot temporarily unavailable',
-            response: 'I apologize, but I\'m experiencing some technical difficulties. Please try asking your question again.',
+            response: 'I am experiencing a momentary connection glitch. Please retry your inquiry.',
             suggestions: chatbot.getQuickSuggestions(),
             timestamp: new Date().toISOString()
         });
@@ -459,21 +429,23 @@ app.get('/api/health', (req, res) => {
 
     res.json({
         status: 'ok',
+        name: 'NewsMate Global Chronicle',
+        version: '2.0.0',
         apis: apiStatus,
         ai: {
-            gemini: process.env.GEMINI_API_KEY ? 'configured' : 'not_configured',
+            gemini: process.env.GEMINI_API_KEY ? 'configured' : 'fallback_heuristic',
             chatbot: 'ready'
         },
         supportedCountries: Object.keys(countryNames),
-        newsApiCountries: newsApiSupportedCountries,
-        webScrapingAvailable: false,
+        zeroKeyEngine: 'active',
         timestamp: new Date().toISOString()
     });
 });
 
 app.listen(PORT, () => {
-    console.log(`🚀 Server running on http://localhost:${PORT}`);
-    console.log('📊 API Status:', newsAPIs.map(api => `${api.name}: ${api.apiKey ? '✅' : '❌'}`).join(', '));
-    console.log(`🌍 Supported Countries: ${Object.keys(countryNames).length}`);
-    console.log(`🔑 AI Chatbot: ${process.env.GEMINI_API_KEY ? '✅ Gemini' : '⚠️ Rule-based'}`);
+    console.log(`\n======================================================`);
+    console.log(`📰 NewsMate 2.0 Server running on http://localhost:${PORT}`);
+    console.log(`🔑 Configured APIs: ${newsAPIs.filter(a => a.apiKey).map(a => a.name).join(', ') || 'None (Zero-Key RSS Fallback Active)'}`);
+    console.log(`🤖 AI Engine: ${process.env.GEMINI_API_KEY ? 'Gemini 1.5 Flash' : 'Heuristic Editorial Fallback'}`);
+    console.log(`======================================================\n`);
 });
