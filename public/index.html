@@ -85,6 +85,23 @@
                 </div>
             </div>
 
+            <!-- LIVE MARKET TELEMETRY TICKER -->
+            <div class="market-telemetry-bar" id="market-telemetry-bar">
+                <div class="market-label-wrap">
+                    <span class="market-pulse"></span>
+                    <span class="market-label">GLOBAL MARKETS</span>
+                </div>
+                <div class="market-tickers-scroll" id="market-tickers-scroll">
+                    <span class="market-pill">S&P 500 <strong>5,633.09</strong> <span class="market-pos">▲ +0.45%</span></span>
+                    <span class="market-pill">NASDAQ <strong>17,713.80</strong> <span class="market-pos">▲ +0.68%</span></span>
+                    <span class="market-pill">DOW <strong>40,845.20</strong> <span class="market-pos">▲ +0.12%</span></span>
+                    <span class="market-pill">FTSE 100 <strong>8,278.40</strong> <span class="market-neg">▼ -0.15%</span></span>
+                    <span class="market-pill">GOLD <strong>$2,584.50</strong> <span class="market-pos">▲ +0.32%</span></span>
+                    <span class="market-pill">BRENT CRUDE <strong>$72.65</strong> <span class="market-pos">▲ +0.88%</span></span>
+                    <span class="market-pill">BTC/USD <strong>$59,420</strong> <span class="market-pos">▲ +2.10%</span></span>
+                </div>
+            </div>
+
             <!-- SEARCH & GLOBAL DISPATCH CONTROLS -->
             <div class="masthead-search-bar">
                 <div class="search-input-wrap">
@@ -154,7 +171,19 @@
                     <span class="feed-count-pill" id="feed-count-pill">0 Stories</span>
                 </div>
 
+                <!-- WIRE SENTIMENT HEATMAP -->
+                <div class="sentiment-heatmap-wrap" id="sentiment-heatmap-wrap" title="Aggregate wire sentiment of loaded headlines">
+                    <span class="sentiment-label">WIRE SENTIMENT:</span>
+                    <div class="sentiment-bar-track">
+                        <div class="sentiment-segment opt" id="sent-opt-bar" style="width: 30%;" title="Optimistic / Bullish"></div>
+                        <div class="sentiment-segment neu" id="sent-neu-bar" style="width: 50%;" title="Neutral / Developing"></div>
+                        <div class="sentiment-segment crit" id="sent-crit-bar" style="width: 20%;" title="Critical / Bearish"></div>
+                    </div>
+                    <span class="sentiment-score-text" id="sentiment-score-text">Developing</span>
+                </div>
+
                 <div class="toolbar-tools">
+
                     <!-- View Mode Switcher -->
                     <div class="view-switch-group" role="group" aria-label="View mode">
                         <button class="view-btn active" data-view="grid" title="Magazine Grid View">

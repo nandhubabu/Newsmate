@@ -403,10 +403,123 @@ a {
     font-weight: 700;
 }
 
+/* MARKET TELEMETRY BAR */
+.market-telemetry-bar {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-hairline);
+    border-radius: var(--radius-md);
+    padding: 0.35rem 0.85rem;
+    margin-top: 1rem;
+    font-family: var(--font-mono);
+    font-size: 0.74rem;
+    overflow: hidden;
+}
+
+.market-label-wrap {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    color: var(--accent-gold);
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    flex-shrink: 0;
+}
+
+.market-pulse {
+    width: 6px;
+    height: 6px;
+    background: var(--accent-gold);
+    border-radius: 50%;
+    animation: liveBlink 1.6s infinite ease-in-out;
+}
+
+.market-tickers-scroll {
+    display: flex;
+    gap: 1.25rem;
+    overflow-x: auto;
+    white-space: nowrap;
+    scrollbar-width: none;
+    flex: 1;
+}
+
+.market-tickers-scroll::-webkit-scrollbar {
+    display: none;
+}
+
+.market-pill {
+    color: var(--text-secondary);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    flex-shrink: 0;
+}
+
+.market-pill strong {
+    color: var(--text-primary);
+}
+
+.market-pos {
+    color: var(--accent-emerald);
+    font-weight: 600;
+}
+
+.market-neg {
+    color: var(--accent-coral);
+    font-weight: 600;
+}
+
+/* SENTIMENT HEATMAP BAR */
+.sentiment-heatmap-wrap {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-subtle);
+    padding: 0.25rem 0.65rem;
+    border-radius: var(--radius-full);
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+}
+
+.sentiment-label {
+    color: var(--text-muted);
+    font-weight: 600;
+}
+
+.sentiment-bar-track {
+    width: 60px;
+    height: 6px;
+    border-radius: var(--radius-full);
+    display: flex;
+    overflow: hidden;
+    background: var(--bg-muted);
+}
+
+.sentiment-segment.opt {
+    background: var(--accent-emerald);
+}
+
+.sentiment-segment.neu {
+    background: var(--accent-gold);
+}
+
+.sentiment-segment.crit {
+    background: var(--accent-coral);
+}
+
+.sentiment-score-text {
+    font-weight: 600;
+    color: var(--accent-gold);
+}
+
 /* SEARCH BAR */
 .masthead-search-bar {
     margin: 1.25rem 0 0.85rem 0;
 }
+
 
 .search-input-wrap {
     position: relative;

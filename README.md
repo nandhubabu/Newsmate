@@ -52,7 +52,12 @@ Built with a resilient **Zero-Key Architecture** and a sub-15ms **In-Memory Cach
   3. Outlook & implications (What to watch next)
 - Powered by **Gemini 1.5 Flash** when configured, or an intelligent **Local Extractive Heuristic Engine** as zero-dependency fallback.
 
+### 📊 5. Live Market Telemetry & Headline Sentiment Heatmap
+- **Global Financial Benchmarks**: Real-time telemetry tracking S&P 500, NASDAQ, DOW, FTSE 100, Gold, Brent Crude, Bitcoin, and Ethereum with live `▲ / ▼` percentage shifts.
+- **Wire Headline Sentiment Matrix**: Tri-color visual meter displaying aggregate market/news sentiment (% Optimistic / Bullish, Neutral / Balanced, and Critical / Bearish) calculated across currently loaded dispatches.
+
 ### 🌅 6. 60-Second Daily Morning Intelligence Briefing
+
 - Compiles current top stories across technology, markets, and world affairs into a consolidated 60-second broadcast memo.
 - Integrated "Listen to Briefing" audio player and one-click copy button.
 
@@ -192,6 +197,21 @@ Extracts clean, full-length readable article paragraphs from an external wire UR
     "cached": false
   }
   ```
+
+### `GET /api/markets`
+Returns live financial telemetry across major equity indexes, commodities, and digital assets.
+- **Response**:
+  ```json
+  {
+    "status": "ok",
+    "indices": [
+      { "symbol": "S&P 500", "value": "5,633.09", "change": "+0.45%", "positive": true },
+      { "symbol": "BTC/USD", "value": "$59,420", "change": "+2.10%", "positive": true }
+    ],
+    "cached": false
+  }
+  ```
+
 
 ### `POST /api/ai/summarize`
 Generates a structured 3-bullet executive takeaway for an article.

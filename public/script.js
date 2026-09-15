@@ -120,7 +120,14 @@ class NewsMateApp {
             sendCopilotBtn: document.getElementById('send-copilot-btn'),
 
             // Toast
-            toastContainer: document.getElementById('toast-container')
+            toastContainer: document.getElementById('toast-container'),
+
+            // Market & Sentiment Telemetry
+            marketTickersScroll: document.getElementById('market-tickers-scroll'),
+            sentOptBar: document.getElementById('sent-opt-bar'),
+            sentNeuBar: document.getElementById('sent-neu-bar'),
+            sentCritBar: document.getElementById('sent-crit-bar'),
+            sentimentScoreText: document.getElementById('sentiment-score-text')
         };
 
         this.init();
@@ -134,6 +141,8 @@ class NewsMateApp {
         this.updateBookmarksBadge();
         this.bindEvents();
         this.fetchNews();
+        this.fetchMarkets();
+        setInterval(() => this.fetchMarkets(), 60000);
     }
 
     /* ==========================================================================
@@ -395,6 +404,7 @@ class NewsMateApp {
             }
 
             this.updateTicker(this.articles);
+            this.computeAndRenderSentiment();
             this.filterAndRenderArticles();
 
         } catch (err) {
@@ -433,6 +443,63 @@ class NewsMateApp {
                 ● <strong>${this.escapeHtml(art.source?.name || 'Wire')}:</strong> ${this.escapeHtml(art.title)}
             </span>
         `).join('');
+    }
+
+    async fetchMarkets() {
+        try {
+            const res = await fetch('/api/markets');
+            const data = await res.json();
+            if (data.status === 'ok' && data.indices && this.dom.marketTickersScroll) {
+                this.dom.marketTickersScroll.innerHTML = data.indices.map(idx => `
+                    <span class="market-pill">
+                        ${this.escapeHtml(idx.symbol)} <strong>${this.escapeHtml(idx.value)}</strong>
+                        <span class="${idx.positive ? 'market-pos' : 'market-neg'}">${this.escapeHtml(idx.change)}</span>
+                    </span>
+                `).join('');
+            }
+        } catch (err) {
+            console.warn('Market telemetry failed:', err);
+        }
+    }
+
+    computeAndRenderSentiment() {
+        if (!this.articles || this.articles.length === 0) return;
+
+        let optCount = 0;
+        let critCount = 0;
+        let neuCount = 0;
+
+        const optRegex = /surge|gain|growth|breakthrough|record|rally|triumph|innovat|success|jump|boost|rise|profit|soar/i;
+        const critRegex = /crisis|war|fall|drop|decline|inflation|crash|threat|warn|probe|death|scandal|conflict|risk|loss|strike|disaster/i;
+
+        this.articles.forEach(art => {
+            const text = `${art.title} ${art.description || ''}`;
+            if (optRegex.test(text)) {
+                optCount++;
+            } else if (critRegex.test(text)) {
+                critCount++;
+            } else {
+                neuCount++;
+            }
+        });
+
+        const total = this.articles.length;
+        const optPct = Math.round((optCount / total) * 100);
+        const critPct = Math.round((critCount / total) * 100);
+        const neuPct = Math.max(0, 100 - optPct - critPct);
+
+        if (this.dom.sentOptBar) this.dom.sentOptBar.style.width = `${optPct}%`;
+        if (this.dom.sentNeuBar) this.dom.sentNeuBar.style.width = `${neuPct}%`;
+        if (this.dom.sentCritBar) this.dom.sentCritBar.style.width = `${critPct}%`;
+
+        let dominant = 'Neutral';
+        if (optPct > 40 && optPct > critPct) dominant = 'Bullish';
+        else if (critPct > 40 && critPct > optPct) dominant = 'Critical';
+        else dominant = 'Balanced';
+
+        if (this.dom.sentimentScoreText) {
+            this.dom.sentimentScoreText.textContent = `${dominant} (${optPct}% + / ${critPct}% -)`;
+        }
     }
 
     filterAndRenderArticles() {
