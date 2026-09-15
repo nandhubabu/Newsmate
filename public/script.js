@@ -145,6 +145,21 @@ class NewsMateApp {
         this.fetchNews();
         this.fetchMarkets();
         setInterval(() => this.fetchMarkets(), 60000);
+        this.registerServiceWorker();
+    }
+
+    registerServiceWorker() {
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                    .then((reg) => {
+                        console.log('✅ NewsMate Service Worker registered with scope:', reg.scope);
+                    })
+                    .catch((err) => {
+                        console.warn('⚠️ Service Worker registration failed:', err);
+                    });
+            });
+        }
     }
 
     /* ==========================================================================

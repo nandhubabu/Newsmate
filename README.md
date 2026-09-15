@@ -87,13 +87,18 @@ Built with a resilient **Zero-Key Architecture** and a sub-15ms **In-Memory Cach
   4. *Tier 4 (Zero-Key Engine)*: Live RSS & open feeds (NPR, BBC, The Hindu, The Verge, CNBC, Hacker News, Dev.to)
 - **Zero empty screens**: News always loads even with missing, expired, or rate-limited API keys.
 
+### 📱 11. Progressive Web App (PWA) & Offline Shell
+- **Standalone Experience**: Installable on desktop and mobile browsers via `manifest.json`.
+- **Service Worker (`sw.js`)**: Pre-caches the editorial app shell and styles.
+- **Offline API Fallback**: When connectivity drops, cached headlines and benchmarks remain instantly readable with zero connection dropouts.
+
 ---
 
 ## 🛠️ Tech Stack
 
 - **Backend**: Node.js, Express.js (v5), Axios, Cheerio, Dotenv, CORS
-- **CI/CD**: GitHub Actions (multi-node matrix: 18.x, 20.x, 22.x)
-- **Frontend**: Vanilla HTML5, Modern CSS3 (Custom Properties & Grid/Flexbox), ES6+ JavaScript
+- **CI/CD & Automation**: GitHub Actions (CI multi-matrix test & Version Release pipeline)
+- **Frontend**: Vanilla HTML5, Modern CSS3 (Custom Properties & Grid/Flexbox), ES6+ JavaScript, Service Worker (PWA)
 - **APIs & Feeds**: Web Speech API, RSS XML/JSON parsers, Google Gemini 1.5 Flash API
 - **Fonts**: Google Fonts (`Newsreader`, `Plus Jakarta Sans`, `JetBrains Mono`)
 
@@ -105,20 +110,26 @@ Built with a resilient **Zero-Key Architecture** and a sub-15ms **In-Memory Cach
 Newsmate/
 ├── .github/
 │   └── workflows/
-│       └── ci.yml         # GitHub Actions CI automated pipeline
+│       ├── ci.yml                 # GitHub Actions CI automated quality pipeline
+│       └── version-release.yml    # GitHub Actions automated versioning & release pipeline
 ├── public/
-│   ├── index.html         # Semantic editorial layout & modal containers
-│   ├── styles.css         # Modern design system (Midnight & Paper themes)
-│   ├── style.css          # Stylesheet forwarder
-│   └── script.js          # Client application, state management, TTS, AI UI
-├── server.js              # Express server, memory cache, extractor & API endpoints
-├── chatbot.js             # AI Copilot & 3-bullet summarization engine
-├── simple-scraper.js      # Zero-Key RSS and open wire feed engine
-├── scraper.js             # Cheerio web scraper routines
-├── package.json           # Project manifest and scripts
-├── .env.example           # Sample environment variables
-├── .gitignore             # Git ignore configuration
-└── README.md              # Documentation
+│   ├── index.html                 # Semantic editorial layout & modal containers
+│   ├── styles.css                 # Modern design system (Midnight & Paper themes)
+│   ├── style.css                  # Stylesheet forwarder
+│   ├── script.js                  # Client application, state management, TTS, PWA registration
+│   ├── manifest.json              # Progressive Web App manifest
+│   ├── icon.svg                   # High-resolution vector PWA brand icon
+│   └── sw.js                      # Service Worker caching & offline engine
+├── test/
+│   └── health-check.js            # Automated verification test suite
+├── server.js                      # Express server, memory cache, extractor & API endpoints
+├── chatbot.js                     # AI Copilot & 3-bullet summarization engine
+├── simple-scraper.js              # Zero-Key RSS and open wire feed engine
+├── scraper.js                     # Cheerio web scraper routines
+├── package.json                   # Project manifest, dependencies, and test/lint scripts
+├── .env.example                   # Sample environment variables
+├── .gitignore                     # Git ignore configuration
+└── README.md                      # Comprehensive documentation
 ```
 
 ---

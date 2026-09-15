@@ -1,0 +1,20 @@
+{
+  "name": "NewsMate — Global Intelligence Chronicle",
+  "short_name": "NewsMate",
+  "description": "High-density editorial news intelligence platform with audio playlist queue, full-article readability extractor, and live market telemetry.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#080b12",
+  "theme_color": "#080b12",
+  "categories": ["news", "business", "finance", "productivity"],
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "512x512 192x192 128x128 64x64",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
